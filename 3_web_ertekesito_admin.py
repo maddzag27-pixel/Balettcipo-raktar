@@ -102,40 +102,44 @@ elif funkcio == "🔐 Admin":
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
         st.subheader("📊 Adatkezelés")
         
-       # --- EXPORTÁLÁS: Fix heti sablon formátumban ---
+# --- EXPORTÁLÁS: Fix sablon formátumra ---
         st.subheader("📊 Adatkezelés")
-        if st.button("📥 Heti sablon letöltése (Oszlopos)"):
+        if st.button("📥 Heti sablon letöltése (Sablon szerinti)"):
             naplo_docs = db.collection("naplo").stream()
-            naplo_data = [doc.to_dict() for doc in naplo_docs]
+            data = [doc.to_dict() for doc in naplo_docs]
             
-            if naplo_data:
-                df = pd.DataFrame(naplo_data)
+            if data:
+                df = pd.DataFrame(data)
                 df['datum'] = pd.to_datetime(df['datum'])
                 
-                # Segédoszlop: Hét napja (0=Hétfő, 4=Péntek)
-                df['nap_index'] = df['datum'].dt.dayofweek
+                # 1. Készítünk egy mesterlistát az összes SKU-ról
+                # A sablonodban a Méret/Keménység fixen szerepel, ezért:
+                all_skus = []
+                for m in sizes:
+                    for k in hardnesses:
+                        all_skus.append(f"{m}_M_{k}") # Ide kell a megfelelő szélesség, vagy gyűjtsd mindet
                 
-                # Pivot tábla: SKU (Méret_Szélesség_Keménység) soronként, napok oszloponként
-                # A 'darabszam' összegzése napokra
-                pivot_df = df.pivot_table(index='sku', columns='nap_index', values='darabszam', aggfunc='sum', fill_value=0)
+                final_template = pd.DataFrame(index=all_skus)
                 
-                # Oszlopnevek beállítása
+                # 2. Napokra bontva kitöltjük
                 nap_nevek = {0: 'HÉTFŐ', 1: 'KEDD', 2: 'SZERDA', 3: 'CSÜTÖRTÖK', 4: 'PÉNTEK'}
-                pivot_df.rename(columns=nap_nevek, inplace=True)
                 
-                # Excel generálás
+                for i in range(5):
+                    nap_df = df[df['datum'].dt.dayofweek == i]
+                    grouped = nap_df.groupby('sku')['darabszam'].sum()
+                    final_template[nap_nevek[i]] = grouped
+                
+                final_template = final_template.fillna(0)
+                
+                # 3. Excelbe írás
                 output = BytesIO()
                 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    pivot_df.to_excel(writer, sheet_name='Heti_Kisz')
-                    
-                    # Opcionális: Formázás (szélesebb oszlopok stb.)
-                    worksheet = writer.sheets['Heti_Kisz']
-                    worksheet.set_column('A:F', 15)
+                    final_template.to_excel(writer, sheet_name='Heti_Sablon')
                 
                 st.download_button(
-                    label="📥 Heti sablon letöltése",
+                    label="📥 Heti sablon letöltése (Fix struktúra)",
                     data=output.getvalue(),
-                    file_name=f"Heti_Kiszedes_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+                    file_name=f"Heti_Sablon_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
                     mime="application/vnd.ms-excel"
                 )
             else:
