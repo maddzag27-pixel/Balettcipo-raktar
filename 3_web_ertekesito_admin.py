@@ -108,8 +108,11 @@ elif funkcio == "🔐 Admin":
                 wb = openpyxl.load_workbook(fajlnev)
                 ws = wb.active
                 
-                # Adatok lekérése
+                # ADATOK LEKÉRÉSE
                 docs = list(db.collection("naplo").stream())
+                
+                # A4 = 1. oszlop (Hétfő), 4. oszlop (Kedd), 7. oszlop (Szerda), 10. oszlop (Csütörtök), 13. oszlop (Péntek)
+                # Ha a napok egymás mellett vannak 3-as blokkokban:
                 nap_blokk_kezdete = {0: 1, 1: 4, 2: 7, 3: 10, 4: 13}
 
                 for doc in docs:
@@ -125,34 +128,29 @@ elif funkcio == "🔐 Admin":
                         
                         kezdo_oszlop = nap_blokk_kezdete[nap_index]
                         
-# A ciklus belsejében, közvetlenül a row loop alatt:
-                        for row in range(4, 31): 
+                        # Keresés a 4. sortól kezdve
+                        for row in range(4, 50): 
                             val1 = str(ws.cell(row=row, column=kezdo_oszlop).value or "").strip().lower()
                             val2 = str(ws.cell(row=row, column=kezdo_oszlop + 1).value or "").strip().lower()
                             
-                            # ITT A TESZT:
-                            # Ha csak az első sort vizsgáljuk, láthatjuk, mit lát a gép:
-                            if row == 4:
-                                st.write(f"Sor 4: Keresett: '{meret_szel}' / '{kemenyseg}'")
-                                st.write(f"Sor 4: Excelben van: '{val1}' / '{val2}'")
-                            
+                            # HA EGYEZIK:
                             if val1 == meret_szel and val2 == kemenyseg:
-                                # ... (beírás)
-                                cel_oszlop = kezdo_oszlop + 2
+                                cel_oszlop = kezdo_oszlop + 2 # Darabszám oszlop
                                 current_val = ws.cell(row=row, column=cel_oszlop).value or 0
-                                ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
+                                # Ellenőrizzük, hogy szám-e az érték
+                                try:
+                                    ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
+                                except:
+                                    ws.cell(row=row, column=cel_oszlop).value = darab
                                 break
 
+                # MENTÉS ÉS LETÖLTÉS
                 output = BytesIO()
-                wb.save("debug_mentes.xlsx")
-                with open("debug_mentes.xlsx", "rb") as f:
-                    st.download_button("📥 Debug Excel letöltése", f, "debug_mentes.xlsx")
                 wb.save(output)
                 st.download_button("📥 Letöltés kitöltött sablon", data=output.getvalue(), file_name="Kitoltott_kiszedes.xlsx")
                 st.success("Sikeres kitöltés!")
             except Exception as e:
                 st.error(f"Hiba történt: {e}")
-
         # --- KÉSZLET SZERKESZTÉSE ---
         st.subheader("📦 Készlet Szerkesztése")
         adatok = get_firebase_data()
