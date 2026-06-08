@@ -100,13 +100,35 @@ elif funkcio == "📊 Értékesítő":
 elif funkcio == "🔐 Admin":
     st.title("🔐 Adminisztráció")
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
+        # --- EXPORTÁLÁS GOMB ---
+        st.subheader("📊 Adatkezelés")
+        if st.button("📥 Napi Napló Exportálása (Excel)"):
+            naplo_docs = db.collection("naplo").stream()
+            naplo_data = [doc.to_dict() for doc in naplo_docs]
+            if naplo_data:
+                df_naplo = pd.DataFrame(naplo_data)
+                output = BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    df_naplo.to_excel(writer, index=False, sheet_name='Naplo')
+                st.download_button(
+                    label="Kattints a letöltéshez",
+                    data=output.getvalue(),
+                    file_name=f"naplo_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+                    mime="application/vnd.ms-excel"
+                )
+            else:
+                st.warning("A napló üres!")
+
+        # --- KÉSZLET SZERKESZTÉSE ---
+        st.subheader("📦 Készlet Szerkesztése")
         adatok = get_firebase_data()
         for w in widths:
-            st.subheader(f"🛠️ \"{w}\" szerkesztése")
+            st.markdown(f"**\"{w}\" szélesség**")
             m_df = pd.DataFrame(0, index=hardnesses, columns=sizes)
             for m in sizes:
                 for k in hardnesses:
                     m_df.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
+            
             edit = st.data_editor(m_df, use_container_width=True, key=f"ed_{w}")
             if st.button(f"💾 Mentés: {w}", key=f"btn_{w}"):
                 batch = db.batch()
@@ -115,4 +137,5 @@ elif funkcio == "🔐 Admin":
                         if int(edit.at[k, m]) != adatok.get(f"{m}_{w}_{k}", 0):
                             batch.set(db.collection("keszlet").document(f"{m}_{w}_{k}"), {"mennyiseg": int(edit.at[k, m])})
                 batch.commit()
+                st.rerun()
                 st.rerun()
