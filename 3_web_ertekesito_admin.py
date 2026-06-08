@@ -63,14 +63,25 @@ def get_firebase_data():
 # SEGÉDFÜGGVÉNY: Mátrix generálás
 # ==============================================================================
 def get_matrix(adatok, w):
+    # Létrehozzuk a mátrixot, majd kiegészítjük az oszlopokkal
     matrix = pd.DataFrame(0, index=hardnesses, columns=sizes)
     for m in sizes:
         for k in hardnesses:
             matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
-    # Összesítés
-    matrix["ÖSSZESEN"] = matrix.sum(axis=1)
-    matrix.loc["ÖSSZESEN"] = matrix.sum(axis=0)
-    return matrix
+    
+    # Új oszlopok: Keménység (bal), Méretek, Keménység (jobb)
+    final_df = matrix.copy()
+    final_df.insert(0, "Keménység (bal)", hardnesses)
+    final_df["Keménység (jobb)"] = hardnesses
+    
+    # Összesítő sor (csak a méret-oszlopokra számolva)
+    total_row = matrix.sum(axis=0).to_dict()
+    total_row["Keménység (bal)"] = "ÖSSZESEN"
+    total_row["Keménység (jobb)"] = "ÖSSZESEN"
+    
+    # Sor hozzáadása a df-hez
+    final_df = pd.concat([final_df, pd.DataFrame([total_row])], ignore_index=True)
+    return final_df
 
 # ==============================================================================
 # A) RAKTÁRI GOMBOS FELÜLET
@@ -114,9 +125,7 @@ elif funkcio == "📊 Értékesítő (Csak olvasható)":
     for w in widths:
         st.subheader(f"📦 \"{w}\" Szélesség")
         df = get_matrix(adatok, w)
-        # Színezés: soronként vizsgáljuk a keménységet
-        styled_df = df.style.apply(lambda x: [szinezo(x, x.name) for _ in x], axis=1)
-        st.dataframe(styled_df, use_container_width=True)
+        st.dataframe(df, use_container_width=True, hide_index=True)
 
 # ==============================================================================
 # C) ADMIN FELÜLET
