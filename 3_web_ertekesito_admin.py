@@ -137,6 +137,8 @@ elif funkcio == "🔐 Admin":
 
                 output = BytesIO()
                 wb.save("debug_mentes.xlsx")
+                with open("debug_mentes.xlsx", "rb") as f:
+                    st.download_button("📥 Debug Excel letöltése", f, "debug_mentes.xlsx")
                 wb.save(output)
                 st.download_button("📥 Letöltés kitöltött sablon", data=output.getvalue(), file_name="Kitoltott_kiszedes.xlsx")
                 st.success("Sikeres kitöltés!")
