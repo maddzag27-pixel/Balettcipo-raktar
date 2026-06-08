@@ -101,23 +101,15 @@ elif funkcio == "📊 Értékesítő":
 elif funkcio == "🔐 Admin":
     st.title("🔐 Adminisztráció")
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
-# --- EXPORTÁLÁS: Fix sablonba (kiszedes_sablon.xlsx) ---
         st.subheader("📊 Adatkezelés")
-if st.button("📥 Heti sablon kitöltése adatokkal"):
+        if st.button("📥 Heti sablon kitöltése adatokkal"):
             try:
                 fajlnev = "kiszedes_sablon.xlsx" 
                 wb = openpyxl.load_workbook(fajlnev)
                 ws = wb.active
                 
-                # 1. DEBUG: nézzük meg, mi van az Excel 4. sorában!
-                debug_sor = [ws.cell(row=4, column=i).value for i in range(1, 16)]
-                st.write(f"Excel 4. sor tartalma: {debug_sor}")
-
-                # 2. Adatok lekérése
+                # Adatok lekérése
                 docs = list(db.collection("naplo").stream())
-                st.write(f"Talált dokumentumok: {len(docs)}")
-
-                # 3. Napok oszlopai
                 nap_blokk_kezdete = {0: 1, 1: 4, 2: 7, 3: 10, 4: 13}
 
                 for doc in docs:
@@ -127,14 +119,12 @@ if st.button("📥 Heti sablon kitöltése adatokkal"):
                     
                     if 0 <= nap_index <= 4:
                         sku_reszek = adat['sku'].split('_') 
-                        # Összevonjuk a méretet és szélességet (pl: '8' + 'W' = '8w')
                         meret_szel = (str(sku_reszek[0]) + str(sku_reszek[1])).lower()
                         kemenyseg = str(sku_reszek[2]).lower()
                         darab = int(adat.get('darabszam', 0))
                         
                         kezdo_oszlop = nap_blokk_kezdete[nap_index]
                         
-                        # Sor keresése (4. sortól a 30-ig)
                         for row in range(4, 31): 
                             val1 = str(ws.cell(row=row, column=kezdo_oszlop).value or "").strip().lower()
                             val2 = str(ws.cell(row=row, column=kezdo_oszlop + 1).value or "").strip().lower()
@@ -145,13 +135,13 @@ if st.button("📥 Heti sablon kitöltése adatokkal"):
                                 ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
                                 break
 
-                # 4. Mentés
                 output = BytesIO()
                 wb.save(output)
-                st.download_button("📥 Letöltés", data=output.getvalue(), file_name="Kitoltott_kiszedes.xlsx")
-                
+                st.download_button("📥 Letöltés kitöltött sablon", data=output.getvalue(), file_name="Kitoltott_kiszedes.xlsx")
+                st.success("Sikeres kitöltés!")
             except Exception as e:
                 st.error(f"Hiba történt: {e}")
+
         # --- KÉSZLET SZERKESZTÉSE ---
         st.subheader("📦 Készlet Szerkesztése")
         adatok = get_firebase_data()
@@ -161,6 +151,7 @@ if st.button("📥 Heti sablon kitöltése adatokkal"):
             for m in sizes:
                 for k in hardnesses:
                     m_df.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
+            
             edit = st.data_editor(m_df, use_container_width=True, key=f"ed_{w}")
             if st.button(f"💾 Mentés: {w}", key=f"btn_{w}"):
                 batch = db.batch()
