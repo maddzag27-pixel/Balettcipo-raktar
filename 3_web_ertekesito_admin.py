@@ -41,15 +41,19 @@ funkcio = st.sidebar.radio("Válassz felületet:", [
     "🔐 Admin (Szerkeszthető)"
 ])
 
-# --- ADATOK LEKÉRÉSE (GYORSÍTOTT ÉS BIZTONSÁGOS VERZIÓ) ---
-firebase_adatok = {}
-try:
-    keszlet_ref = db.collection("keszlet").get()
-    for doc in keszlet_ref:
-        firebase_adatok[doc.id] = int(doc.to_dict().get("mennyiseg", 0))
-except Exception as e:
-    st.sidebar.error(f"Adatbázis hiba: {e}")
+# --- ADATOK LEKÉRÉSE (LUSTA BETÖLTÉS - NEM AKASZTJA MEG A SZERVERT) ---
+@st.cache_data(ttl=60) # 60 másodpercenként frissít
+def get_firebase_data():
+    try:
+        adatok = {}
+        keszlet_ref = db.collection("keszlet").get()
+        for doc in keszlet_ref:
+            adatok[doc.id] = int(doc.to_dict().get("mennyiseg", 0))
+        return adatok
+    except:
+        return {}
 
+firebase_adatok = get_firebase_data()
 # ==============================================================================
 # A) RAKTÁRI GOMBOS FELÜLET
 # ==============================================================================
