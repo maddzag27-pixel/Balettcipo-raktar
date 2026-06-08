@@ -38,10 +38,15 @@ funkcio = st.sidebar.radio("Válassz felületet:", [
     "📊 Értékesítő (Csak olvasható)",
     "🔐 Admin (Szerkeszthető)"
 ])
-
-# --- ADATOK LEKÉRÉSE ---
-docs = db.collection("keszlet").stream()
-firebase_adatok = {doc.id: doc.to_dict().get("mennyiseg", 0) for doc in docs}
+# --- ADATOK LEKÉRÉSE (GYORSÍTOTT ÉS BIZTONSÁGOS VERZIÓ) ---
+firebase_adatok = {}
+try:
+    # A stream() helyett a get() gyűjtemény-lekérést használjuk, ami egyszerre hozza el az egészet
+    keszlet_ref = db.collection("keszlet").get()
+    for doc in keszlet_ref:
+        firebase_adatok[doc.id] = int(doc.to_dict().get("mennyiseg", 0))
+except Exception as e:
+    st.sidebar.error(f"Adatbázis hiba: {e}")
 
 # ==============================================================================
 # A) RAKTÁRI GOMBOS FELÜLET (Mindenki eléri)
