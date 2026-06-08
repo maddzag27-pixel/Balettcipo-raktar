@@ -104,6 +104,13 @@ elif funkcio == "🔐 Admin":
 # --- EXPORTÁLÁS: Fix sablonba (kiszedes_sablon.xlsx) ---
         st.subheader("📊 Adatkezelés")
         if st.button("📥 Heti sablon kitöltése adatokkal"):
+            # ... a kód korábbi része ...
+                # Tesztként kiírjuk a 4. sor tartalmát az Admin felületre, hogy lássuk az oszlopokat
+                debug_sor = [ws.cell(row=4, column=i).value for i in range(1, 16)]
+                st.write(f"Excel 4. sor tartalma: {debug_sor}")
+
+                for doc in docs:
+                    # ... (az előző kódod logikája)
             try:
                 fajlnev = "kiszedes_sablon.xlsx" 
                 wb = openpyxl.load_workbook(fajlnev)
