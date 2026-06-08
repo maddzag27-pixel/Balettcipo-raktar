@@ -42,19 +42,19 @@ funkcio = st.sidebar.radio("Válassz felületet:", [
     "🔐 Admin (Szerkeszthető)"
 ])
 
-# --- ADATOK LEKÉRÉSE (LUSTA BETÖLTÉS - NEM AKASZTJA MEG A SZERVERT) ---
-@st.cache_data(ttl=60) # 60 másodpercenként frissít
+# --- ADATOK LEKÉRÉSE (LUSTA/KÖTEGELT BETÖLTÉS) ---
+@st.cache_data(ttl=60)
 def get_firebase_data():
     try:
         adatok = {}
-        keszlet_ref = db.collection("keszlet").get()
-        for doc in keszlet_ref:
+        # Limitáljuk a lekérést, vagy csak a szükséges gyűjteményt hívjuk
+        docs = db.collection("keszlet").limit(500).stream() 
+        for doc in docs:
             adatok[doc.id] = int(doc.to_dict().get("mennyiseg", 0))
         return adatok
-    except:
+    except Exception as e:
+        st.error(f"Firestore hiba: {e}")
         return {}
-
-firebase_adatok = get_firebase_data()
 # ==============================================================================
 # A) RAKTÁRI GOMBOS FELÜLET
 # ==============================================================================
