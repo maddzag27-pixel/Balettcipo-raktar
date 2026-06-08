@@ -100,45 +100,54 @@ elif funkcio == "📊 Értékesítő":
 elif funkcio == "🔐 Admin":
     st.title("🔐 Adminisztráció")
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
-# --- EXPORTÁLÁS: Fix sablon formátumra (Blokkokban) ---
+# --- EXPORTÁLÁS: Fix sablonba (kiszedes_sablon.xlsx) ---
         st.subheader("📊 Adatkezelés")
-        if st.button("📥 Heti sablon letöltése (Blokkos elrendezés)"):
-            naplo_docs = db.collection("naplo").stream()
-            data = [doc.to_dict() for doc in naplo_docs]
-            
-            if data:
-                df = pd.DataFrame(data)
-                df['datum'] = pd.to_datetime(df['datum'])
-                
-                # Segédoszlopok a bontáshoz
-                df[['Méret', 'Szélesség', 'Keménység']] = df['sku'].str.split('_', expand=True)
-                df['Méret_Szélesség'] = df['Méret'] + ' ' + df['Szélesség']
-                
-                nap_nevek = {0: 'HÉTFŐ', 1: 'KEDD', 2: 'SZERDA', 3: 'CSÜTÖRTÖK', 4: 'PÉNTEK'}
-                
-                output = BytesIO()
-                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    final_df = pd.DataFrame()
-                    
-                    for i in range(5):
-                        nap_df = df[df['datum'].dt.dayofweek == i].copy()
-                        daily_sum = nap_df.groupby(['Méret_Szélesség', 'Keménység'])['darabszam'].sum().reset_index()
-                        daily_sum.columns = [f'{nap_nevek[i]}: Méret/Szél', f'{nap_nevek[i]}: Keménység', f'{nap_nevek[i]}: Darab']
-                        
-                        # Egymás mellé fűzzük a napokat
-                        final_df = pd.concat([final_df, daily_sum], axis=1)
-                        
-                    final_df.to_excel(writer, index=False, sheet_name='Heti_Sablon')
-                
-                st.download_button(
-                    label="📥 Heti sablon letöltése (Blokkos)",
-                    data=output.getvalue(),
-                    file_name="Heti_Kiszedes_Blokkos.xlsx",
-                    mime="application/vnd.ms-excel"
-                )
-            else:
-                st.warning("A napló üres!")
+        if st.button("📥 Heti sablon kitöltése adatokkal"):
+            try:
+                fajlnev = "kiszedes_sablon.xlsx" 
+                wb = openpyxl.load_workbook(fajlnev)
+                ws = wb.active
 
+                # Adatok lekérése a Firebase-ből
+                docs = db.collection("naplo").stream()
+                
+                # Napok oszlopainak megfeleltetése: 
+                # Hétfő (C), Kedd (F), Szerda (I), Csütörtök (L), Péntek (O)
+                # A 3. oszlop a "Darab", a 2. a "Keménység", az 1. a "Méret"
+                nap_oszlop_darab = {0: 3, 1: 6, 2: 9, 3: 12, 4: 15}
+
+                for doc in docs:
+                    adat = doc.to_dict()
+                    datum = pd.to_datetime(adat['datum'])
+                    nap_index = datum.dayofweek
+                    
+                    if nap_index in nap_oszlop_darab:
+                        sku_reszek = adat['sku'].split('_') 
+                        # [Méret, Szélesség, Keménység] - A fájlodban Méret és Keménység van
+                        meret, kemenyseg = sku_reszek[0], sku_reszek[2]
+                        darab = int(adat['darabszam'])
+                        
+                        # Sor keresése (4-től 30-ig)
+                        for row in range(4, 30):
+                            cell_meret = str(ws.cell(row=row, column=nap_oszlop_darab[nap_index]-2).value)
+                            cell_kemenyseg = str(ws.cell(row=row, column=nap_oszlop_darab[nap_index]-1).value)
+                            
+                            if cell_meret == meret and cell_kemenyseg == kemenyseg:
+                                cel_oszlop = nap_oszlop_darab[nap_index]
+                                current_val = ws.cell(row=row, column=cel_oszlop).value or 0
+                                ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
+                                break
+
+                output = BytesIO()
+                wb.save(output)
+                st.download_button(
+                    label="📥 Kitöltött sablon letöltése",
+                    data=output.getvalue(),
+                    file_name="Kitoltott_kiszedes.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            except Exception as e:
+                st.error(f"Hiba történt a kitöltés során: {e}")
         # --- KÉSZLET SZERKESZTÉSE ---
         st.subheader("📦 Készlet Szerkesztése")
         adatok = get_firebase_data()
