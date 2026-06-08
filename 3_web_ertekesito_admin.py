@@ -16,13 +16,14 @@ st.set_page_config(page_title="Balettcipő Raktár", layout="wide")
 # --- FIREBASE INDÍTÁSA ---
 if not firebase_admin._apps:
     secrets = st.secrets["firestore"]
-    cred_dict = dict(secrets) # A Secrets automatikusan szótárként adja vissza
+    cred_dict = dict(secrets)
     cred_dict["private_key"] = cred_dict["private_key"].replace("\\n", "\n")
     
     cred = credentials.Certificate(cred_dict)
     firebase_admin.initialize_app(cred)
 
 db = firestore.client()
+
 # --- 3. FIX ADATOK ---
 widths = ["M", "W", "XW", "XXW"]
 sizes = [str(i) for i in range(5, 15)] 
@@ -42,24 +43,25 @@ funkcio = st.sidebar.radio("Válassz felületet:", [
     "🔐 Admin (Szerkeszthető)"
 ])
 
-# --- ADATOK LEKÉRÉSE (LUSTA/KÖTEGELT BETÖLTÉS) ---
+# --- ADATOK LEKÉRÉSE ---
 @st.cache_data(ttl=60)
 def get_firebase_data():
     try:
         adatok = {}
-        # Limitáljuk a lekérést, vagy csak a szükséges gyűjteményt hívjuk
-        docs = db.collection("keszlet").limit(500).stream() 
+        docs = db.collection("keszlet").stream() 
         for doc in docs:
             adatok[doc.id] = int(doc.to_dict().get("mennyiseg", 0))
         return adatok
     except Exception as e:
         st.error(f"Firestore hiba: {e}")
         return {}
+
 # ==============================================================================
 # A) RAKTÁRI GOMBOS FELÜLET
 # ==============================================================================
 if funkcio == "📱 Raktári Kiszedés (Gombos)":
     st.title("📱 Raktári Mozgás Rögzítése")
+    adatok = get_firebase_data()
     
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -73,7 +75,7 @@ if funkcio == "📱 Raktári Kiszedés (Gombos)":
         valasztott_kemenyseg = st.radio("Keménységek:", hardnesses, key="r_hard")
         
     sku_id = f"{valasztott_meret}_{valasztott_szelesseg}_{valasztott_kemenyseg}"
-    aktualis_keszlet = firebase_adatok.get(sku_id, 0)
+    aktualis_keszlet = adatok.get(sku_id, 0)
     
     st.write("---")
     st.info(f"Kiválasztott cipő: **{sku_id}** | 📦 Aktuális készlet a polcon: **{aktualis_keszlet} db**")
@@ -82,143 +84,50 @@ if funkcio == "📱 Raktári Kiszedés (Gombos)":
     ma_szoveg = datetime.now().strftime("%Y-%m-%d")
     
     with b_col1:
-        if st.button("❌ KISZEDÉS (-1 db)", type="primary", use_container_width=True):
+        if st.button("❌ KISZEDÉS (-1 db)", type="primary"):
             if aktualis_keszlet > 0:
-                uj_db = aktualis_keszlet - 1
-                db.collection("keszlet").document(sku_id).set({"mennyiseg": uj_db}, merge=True)
+                db.collection("keszlet").document(sku_id).set({"mennyiseg": aktualis_keszlet - 1}, merge=True)
                 db.collection("naplo").add({"datum": ma_szoveg, "sku": sku_id, "tipus": "kiszedes", "darabszam": 1})
-                st.success(f"Sikeresen kiszedve 1 db! Új készlet: {uj_db}")
                 st.rerun()
-            else:
-                st.error("A készlet nem mehet 0 alá!")
     with b_col2:
-        if st.button("✅ VISSZARAKÁS (+1 db)", use_container_width=True):
-            uj_db = aktualis_keszlet + 1
-            db.collection("keszlet").document(sku_id).set({"mennyiseg": uj_db}, merge=True)
+        if st.button("✅ VISSZARAKÁS (+1 db)"):
+            db.collection("keszlet").document(sku_id).set({"mennyiseg": aktualis_keszlet + 1}, merge=True)
             db.collection("naplo").add({"datum": ma_szoveg, "sku": sku_id, "tipus": "visszarakas", "darabszam": 1})
-            st.success(f"Sikeresen visszarakva 1 db! Új készlet: {uj_db}")
             st.rerun()
 
 # ==============================================================================
-# B) ÉRTÉKESÍTŐ FELÜLET (Csak olvasható)
+# B) ÉRTÉKESÍTŐ FELÜLET
 # ==============================================================================
 elif funkcio == "📊 Értékesítő (Csak olvasható)":
-    st.title("📊 Balettcipő Élő Készlet (Olvasó)")
-
-    def apply_row_styles(row):
-        kemenyseg = row.name
-        color = kemenyseg_szinek.get(kemenyseg, "#FFFFFF")
-        text_color = "#FFFFFF" if kemenyseg == "XST" else "#000000"
-        return [f"background-color: {color}; color: {text_color}; font-weight: 500;" for _ in row]
-
+    st.title("📊 Balettcipő Élő Készlet")
+    adatok = get_firebase_data()
     for w in widths:
-        st.header(f"📦 \"{w}\" Szélességű Cipők")
+        st.header(f"📦 \"{w}\" Szélesség")
         matrix_df = pd.DataFrame(0, index=hardnesses, columns=sizes)
         for m in sizes:
             for k in hardnesses:
-                sku_id = f"{m}_{w}_{k}"
-                matrix_df.at[k, m] = firebase_adatok.get(sku_id, 0)
-        
-        matrix_df["Keménység "] = matrix_df.index
-        oszlop_osszegek = [matrix_df[m].sum() for m in sizes]
-        teljes_vegosszeg = sum(oszlop_osszegek)
-        
-        formatted_df = matrix_df.copy()
-        for m in sizes:
-            formatted_df[m] = formatted_df[m].apply(lambda x: str(x) if x > 0 else "")
-        
-        display_df = formatted_df.copy()
-        display_df.loc["ÖSSZ:"] = oszlop_osszegek + [f"🎁 VÉGÖSSZEG: {teljes_vegosszeg}"]
-
-        styled_df = display_df.style.apply(
-            lambda row: apply_row_styles(row) if row.name != "ÖSSZ:" else ['background-color: #365F91; color: white; font-weight: bold;'] * len(row), axis=1
-        )
-        st.dataframe(styled_df, use_container_width=True, height=390)
+                matrix_df.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
+        st.dataframe(matrix_df, use_container_width=True)
 
 # ==============================================================================
-# C) ADMIN FELÜLET (Szerkeszthető)
+# C) ADMIN FELÜLET
 # ==============================================================================
 elif funkcio == "🔐 Admin (Szerkeszthető)":
     st.title("🔐 Adminisztrátori Készletkezelés")
-    
-    bevitt_jelszo = st.sidebar.text_input("Írd be az Admin jelszót:", type="password")
-    
-    if bevitt_jelszo != ADMIN_JELSZO:
-        st.warning("⚠️ Kérjük, add meg a helyes adminisztrátori jelszót az oldalsávban a hozzáféréshez!")
-    else:
-        st.success("🔓 Hozzáférés megadva!")
-        
+    if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
+        adatok = get_firebase_data()
         for w in widths:
-            st.header(f"🛠️ \"{w}\" Szélesség szerkesztése")
+            st.subheader(f"🛠️ \"{w}\" szerkesztése")
             matrix_df = pd.DataFrame(0, index=hardnesses, columns=sizes)
             for m in sizes:
                 for k in hardnesses:
-                    sku_id = f"{m}_{w}_{k}"
-                    matrix_df.at[k, m] = firebase_adatok.get(sku_id, 0)
+                    matrix_df.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
             
-            matrix_df["Keménység "] = matrix_df.index
-            
-            edited_df = st.data_editor(matrix_df, key=f"editor_{w}", use_container_width=True, disabled=["Keménység "])
-            
-            if st.button(f"💾 \"{w}\" mentése", key=f"btn_{w}", type="primary"):
-                batch = db.batch()
-                valtozott_valami = False
-                
+            edited_df = st.data_editor(matrix_df)
+            if st.button(f"💾 Mentés: {w}"):
                 for m in sizes:
                     for k in hardnesses:
                         sku_id = f"{m}_{w}_{k}"
-                        uj_ertek = int(edited_df.at[k, m])
-                        regi_ertek = firebase_adatok.get(sku_id, 0)
-                        
-                        if uj_ertek != regi_ertek:
-                            doc_ref = db.collection("keszlet").document(sku_id)
-                            batch.set(doc_ref, {"mennyiseg": uj_ertek}, merge=True)
-                            valtozott_valami = True
-                
-                if valtozott_valami:
-                    batch.commit()
-                    st.success(f"\"{w}\" szélesség sikeresen frissítve a felhőben!")
-                    st.rerun()
-                else:
-                    st.info("Nem történt változás ebben a táblázatban, nincs mit menteni.")
-
-        # --- EXCEL EXPORT ---
-        st.write("---")
-        st.subheader("📊 Gyártástervezési Napló Mentése")
-        
-        def excel_keszites_memoriaban():
-            ma_szoveg = datetime.now().strftime("%Y-%m-%d")
-            wb = openpyxl.load_workbook("kiszedes_sablon.xlsx")
-            ws = wb.active
-            naplo_ref = db.collection("naplo").where("datum", "==", ma_szoveg).stream()
-            
-            adatok_kiszedes, adatok_visszarakas = {}, {}
-            for doc in naplo_ref:
-                data = doc.to_dict()
-                sku, tipus, db_szam = data.get("sku"), data.get("tipus"), data.get("darabszam", 1)
-                if tipus == "kiszedes": adatok_kiszedes[sku] = adatok_kiszedes.get(sku, 0) + db_szam
-                elif tipus == "visszarakas": adatok_visszarakas[sku] = adatok_visszarakas.get(sku, 0) + db_szam
-
-            def cella_kitoltes(sku_adatok, sor_eltolas):
-                for sku, darab in sku_adatok.items():
-                    try:
-                        meret, szelesseg, kemenyseg = sku.split("_")
-                        oszlop_idx = 2 + sizes.index(meret)
-                        szelesseg_alap_sorok = {"M": 5, "W": 20, "XW": 35, "XXW": 50}
-                        vegso_sor = szelesseg_alap_sorok[szelesseg] + hardnesses.index(kemenyseg) + sor_eltolas
-                        ws.cell(row=vegso_sor, column=oszlop_idx, value=darab)
-                    except: continue
-
-            cella_kitoltes(adatok_kiszedes, sor_eltolas=0)
-            cella_kitoltes(adatok_visszarakas, sor_eltolas=60)
-            
-            output = BytesIO()
-            wb.save(output)
-            output.seek(0)
-            return output.getvalue()
-
-        try:
-            excel_adat = excel_keszites_memoriaban()
-            st.download_button(label="📥 Aznapi Gyártásterv Excel letöltése", data=excel_adat, file_name=f"Gyartasterv_{datetime.now().strftime('%Y-%m-%d')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary")
-        except:
-            st.error("⚠️ A 'kiszedes_sablon.xlsx' hiányzik!")
+                        if edited_df.at[k, m] != adatok.get(sku_id, 0):
+                            db.collection("keszlet").document(sku_id).set({"mennyiseg": int(edited_df.at[k, m])})
+                st.rerun()
