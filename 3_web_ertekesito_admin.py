@@ -169,7 +169,6 @@ elif funkcio == "🔐 Admin":
             except Exception as e:
                 st.error(f"Hiba történt: {e}")
 
-        st.subheader("📦 Készlet Szerkesztése")
         # --- KÉSZLET SZERKESZTÉSE ---
         st.subheader("📦 Készlet Szerkesztése")
         adatok = get_firebase_data()
