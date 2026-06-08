@@ -34,11 +34,6 @@ kemenyseg_szinek = {
     "STR": "#4682B4", "XFR": "#A6A6A6", "XST": "#CC0000"
 }
 
-# Színező függvény a táblázathoz
-def szinezo(val, row_name):
-    szin = kemenyseg_szinek.get(row_name, "#FFFFFF")
-    return f'background-color: {szin}'
-
 # --- 4. FUNKCIÓVÁLASZTÓ ---
 st.sidebar.header("✨ Navigáció")
 funkcio = st.sidebar.radio("Válassz felületet:", [
@@ -63,23 +58,19 @@ def get_firebase_data():
 # SEGÉDFÜGGVÉNY: Mátrix generálás
 # ==============================================================================
 def get_matrix(adatok, w):
-    # Létrehozzuk a mátrixot, majd kiegészítjük az oszlopokkal
     matrix = pd.DataFrame(0, index=hardnesses, columns=sizes)
     for m in sizes:
         for k in hardnesses:
             matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
     
-    # Új oszlopok: Keménység , Méretek, Keménység 
     final_df = matrix.copy()
-    final_df.insert(0, "Keménység ", hardnesses)
-    final_df["Keménység "] = hardnesses
+    final_df.insert(0, "Keménység (bal)", hardnesses)
+    final_df["Keménység (jobb)"] = hardnesses
     
-    # Összesítő sor (csak a méret-oszlopokra számolva)
     total_row = matrix.sum(axis=0).to_dict()
-    total_row["Keménység "] = "ÖSSZESEN"
-    total_row["Keménység "] = "ÖSSZESEN"
+    total_row["Keménység (bal)"] = "ÖSSZESEN"
+    total_row["Keménység (jobb)"] = "ÖSSZESEN"
     
-    # Sor hozzáadása a df-hez
     final_df = pd.concat([final_df, pd.DataFrame([total_row])], ignore_index=True)
     return final_df
 
@@ -117,7 +108,7 @@ if funkcio == "📱 Raktári Kiszedés (Gombos)":
         st.rerun()
 
 # ==============================================================================
-# B) ÉRTÉKESÍTŐ FELÜLET (Teljesen javított, színes verzió)
+# B) ÉRTÉKESÍTŐ FELÜLET
 # ==============================================================================
 elif funkcio == "📊 Értékesítő (Csak olvasható)":
     st.title("📊 Balettcipő Élő Készlet")
@@ -125,69 +116,47 @@ elif funkcio == "📊 Értékesítő (Csak olvasható)":
     
     for w in widths:
         st.subheader(f"📦 \"{w}\" Szélesség")
-        df = get_matrix(adatok, w) # Ez már tartalmazza a Keménység(bal), Keménység(jobb) oszlopokat és az ÖSSZESEN sort
+        df = get_matrix(adatok, w)
         
-        # Stílus függvény: színezi a sorokat a bal oldali keménység alapján
         def szinezo_df(row):
-            # Ha az ÖSSZESEN sorról van szó, ne színezze (vagy adjon neki semleges színt)
-            if row["Keménység (bal)"] == "ÖSSZESEN":
+            # A sor indexe alapján kérdezzük le az értéket a DataFrame-ből
+            kemenyseg = df.loc[row.name, "Keménység (bal)"]
+            if kemenyseg == "ÖSSZESEN":
                 return ['background-color: #f0f0f0'] * len(row)
-            
-            kemenyseg = row["Keménység (bal)"]
             szin = kemenyseg_szinek.get(kemenyseg, "#FFFFFF")
             return [f'background-color: {szin}'] * len(row)
 
-        # Alkalmazzuk a stílust
         styled_df = df.style.apply(szinezo_df, axis=1)
-        
-        # Megjelenítés
         st.dataframe(styled_df, use_container_width=True)
+
 # ==============================================================================
-# C) ADMIN FELÜLET (Teljesen javított kód)
+# C) ADMIN FELÜLET
 # ==============================================================================
 elif funkcio == "🔐 Admin (Szerkeszthető)":
     st.title("🔐 Adminisztrátori Készletkezelés")
     
-    # Jelszó védelem
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
-        # Adatok lekérése a Firebase-ből
         adatok = get_firebase_data()
         
         for w in widths:
             st.subheader(f"🛠️ \"{w}\" szélesség szerkesztése")
-            
-            # Mátrix felépítése az adott szélességhez (összesítés nélkül a szerkesztéshez)
             matrix_df = pd.DataFrame(0, index=hardnesses, columns=sizes)
             for m in sizes:
                 for k in hardnesses:
                     matrix_df.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
             
-            # Szerkeszthető tábla egyedi kulccsal (editor_ + szélesség)
-            edited_df = st.data_editor(
-                matrix_df, 
-                use_container_width=True,
-                key=f"editor_{w}"
-            )
+            edited_df = st.data_editor(matrix_df, use_container_width=True, key=f"editor_{w}")
             
-            # Mentés gomb egyedi kulccsal
             if st.button(f"💾 Mentés: {w}", key=f"mentes_{w}"):
                 batch = db.batch()
-                valtozas_tortent = False
-                
+                valtozas = False
                 for m in sizes:
                     for k in hardnesses:
-                        uj_ertek = int(edited_df.at[k, m])
-                        regi_ertek = adatok.get(f"{m}_{w}_{k}", 0)
-                        
-                        # Csak azt frissítjük, ami változott
-                        if uj_ertek != regi_ertek:
-                            doc_ref = db.collection("keszlet").document(f"{m}_{w}_{k}")
-                            batch.set(doc_ref, {"mennyiseg": uj_ertek})
-                            valtozas_tortent = True
-                
-                if valtozas_tortent:
+                        uj = int(edited_df.at[k, m])
+                        if uj != adatok.get(f"{m}_{w}_{k}", 0):
+                            batch.set(db.collection("keszlet").document(f"{m}_{w}_{k}"), {"mennyiseg": uj})
+                            valtozas = True
+                if valtozas:
                     batch.commit()
-                    st.success(f"✅ \"{w}\" szélesség sikeresen frissítve!")
-                    st.rerun() # Frissítjük az oldalt a változások megjelenítéséhez
-                else:
-                    st.info("Nincs változás.")
+                    st.success(f"✅ Frissítve: {w}")
+                    st.rerun()
