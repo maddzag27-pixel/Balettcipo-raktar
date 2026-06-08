@@ -69,10 +69,10 @@ def get_matrix(adatok, w):
         for k in hardnesses:
             matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
     
-    # Új oszlopok: Keménység (bal), Méretek, Keménység (jobb)
+    # Új oszlopok: Keménység , Méretek, Keménység 
     final_df = matrix.copy()
-    final_df.insert(0, "Keménység (bal)", hardnesses)
-    final_df["Keménység (jobb)"] = hardnesses
+    final_df.insert(0, "Keménység ", hardnesses)
+    final_df["Keménység "] = hardnesses
     
     # Összesítő sor (csak a méret-oszlopokra számolva)
     total_row = matrix.sum(axis=0).to_dict()
@@ -119,14 +119,29 @@ if funkcio == "📱 Raktári Kiszedés (Gombos)":
 # ==============================================================================
 # B) ÉRTÉKESÍTŐ FELÜLET
 # ==============================================================================
+# ==============================================================================
+# B) ÉRTÉKESÍTŐ FELÜLET (Javított, színes verzió)
+# ==============================================================================
 elif funkcio == "📊 Értékesítő (Csak olvasható)":
     st.title("📊 Balettcipő Élő Készlet")
     adatok = get_firebase_data()
+    
     for w in widths:
         st.subheader(f"📦 \"{w}\" Szélesség")
         df = get_matrix(adatok, w)
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        
+        # A stílus alkalmazása:
+        # A 'Keménység ' és 'Keménység ' oszlopok értékei alapján színezzük a sorokat
+        def szinezo_df(row):
+            kemenyseg = row["Keménység "]
+            szin = kemenyseg_szinek.get(kemenyseg, "#FFFFFF")
+            return [f'background-color: {szin}'] * len(row)
 
+        # Alkalmazzuk a stílust
+        styled_df = df.style.apply(szinezo_df, axis=1)
+        
+        # Megjelenítés: a stílus objektumot adjuk át a st.dataframe-nek
+        st.dataframe(styled_df, use_container_width=True)
 # ==============================================================================
 # C) ADMIN FELÜLET
 # ==============================================================================
