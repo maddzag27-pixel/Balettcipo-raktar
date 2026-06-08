@@ -109,17 +109,17 @@ elif funkcio == "🔐 Admin":
                 wb = openpyxl.load_workbook(fajlnev)
                 ws = wb.active
 
-# 2. Adatok lekérése a Firebase-ből
-                docs = db.collection("naplo").stream()
+# Adatok lekérése listaként
+                docs = list(db.collection("naplo").stream())
+                st.write(f"Talált dokumentumok száma a naplóban: {len(docs)}")
                 
-                # 3. Napok oszlopainak megfeleltetése: Hétfő (C=3), Kedd (F=6), Szerda (I=9), Csütörtök (L=12), Péntek (O=15)
-                nap_oszlop_darab = {0: 3, 1: 6, 2: 9, 3: 12, 4: 15}
-
-# 3. Napok oszlopainak megfeleltetése
+                # Napok oszlopainak megfeleltetése
                 nap_blokk_kezdete = {0: 1, 1: 4, 2: 7, 3: 10, 4: 13}
 
                 for doc in docs:
                     adat = doc.to_dict()
+                    st.write(f"Feldolgozás alatt: {adat}") # Ez segít látni, mi történik
+                    
                     datum = pd.to_datetime(adat['datum'])
                     nap_index = datum.dayofweek
                     
@@ -133,33 +133,6 @@ elif funkcio == "🔐 Admin":
                         talalt = False
                         
                         # Sor keresése a 4. sortól a 30-ig
-                        # 3. Napok oszlopainak megfeleltetése
-                # Hétfő=1, Kedd=4, Szerda=7, Csütörtök=10, Péntek=13
-                nap_blokk_kezdete = {0: 1, 1: 4, 2: 7, 3: 10, 4: 13}
-
-                for doc in docs:
-                    docs = list(db.collection("naplo").stream())
-                st.write(f"Talált dokumentumok száma a naplóban: {len(docs)}")
-                
-                for doc in docs:
-                    adat = doc.to_dict()
-                    st.write(f"Feldolgozás alatt: {adat}") # Ez kiírja az összes adatot a képernyőre
-                    
-                    # ... a többi kód ...
-                    adat = doc.to_dict()
-                    datum = pd.to_datetime(adat['datum'])
-                    nap_index = datum.dayofweek
-                    
-                    if 0 <= nap_index <= 4:
-                        sku_reszek = adat['sku'].split('_') 
-                        meret_db = str(sku_reszek[0]).strip().lower()
-                        kemenyseg_db = str(sku_reszek[2]).strip().lower()
-                        darab = int(adat.get('darabszam', 0))
-                        
-                        kezdo_oszlop = nap_blokk_kezdete[nap_index]
-                        talalt = False
-                        
-                        # Sor keresése (4. sortól a 30-ig)
                         for row in range(4, 31): 
                             val1 = ws.cell(row=row, column=kezdo_oszlop).value
                             val2 = ws.cell(row=row, column=kezdo_oszlop + 1).value
