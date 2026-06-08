@@ -21,7 +21,7 @@ if not firebase_admin._apps:
 db = firestore.client()
 
 # --- 3. FIX ADATOK ---
-widths = ["M", "X", "XX", "XXX"]
+widths = ["M", "W", "XW", "XXW"]
 sizes = [str(i) for i in range(5, 14)] 
 hardnesses = ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"]
 
@@ -183,7 +183,7 @@ elif funkcio == "🔐 Admin (Szerkeszthető)":
                     meret, szelesseg, kemenyseg = sku.split("_")
                     try:
                         oszlop_idx = 2 + sizes.index(meret)
-                        szelesseg_alap_sorok = {"M": 5, "X": 20, "XX": 35, "XXX": 50}
+                        szelesseg_alap_sorok = {"M": 5, "W": 20, "XW": 35, "XXW": 50}
                         vegso_sor = szelesseg_alap_sorok[szelesseg] + hardnesses.index(kemenyseg) + sor_eltolas
                         ws.cell(row=vegso_sor, column=oszlop_idx, value=darab)
                     except: continue
