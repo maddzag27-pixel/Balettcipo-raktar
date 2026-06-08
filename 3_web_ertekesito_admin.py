@@ -22,7 +22,7 @@ db = firestore.client()
 
 # --- 3. FIX ADATOK ---
 widths = ["M", "W", "XW", "XXW"]
-sizes = [str(i) for i in range(5, 14)] 
+sizes = [str(i) for i in range(5, 15)] 
 hardnesses = ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"]
 
 kemenyseg_szinek = {
