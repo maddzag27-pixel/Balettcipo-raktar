@@ -133,16 +133,22 @@ elif funkcio == "🔐 Admin":
                         kulcs = (nap_index, msz, kem)
                         adatok_tabla[kulcs] = adatok_tabla.get(kulcs, 0) + db_szam
 
-                # Beírás a táblázatba
-                for (nap_index, msz, kem), mennyiseg in adatok_tabla.items():
-                    # Keresünk egy szabad sort, vagy újat nyitunk
-                    kezdo_oszlop = nap_index * 4 + 1
-                    # Egyszerűen írjuk ki sorban (ezt finomíthatod, ha egyeztetni kell a sorokat)
-                    # Itt most minden SKU új sorba kerül
-                    sor = 4 + len([k for k in adatok_tabla.keys() if k[0] == nap_index]) 
-                    ws.cell(row=sor, column=kezdo_oszlop, value=msz)
-                    ws.cell(row=sor, column=kezdo_oszlop + 1, value=kem)
-                    ws.cell(row=sor, column=kezdo_oszlop + 2, value=mennyiseg)
+                # Beírás a táblázatba - FIX SORRENDDEL
+                # Összegyűjtjük az összes egyedi terméket, ami valaha volt a naplóban
+                osszes_termek = sorted(list(set((msz, kem) for nap, msz, kem in adatok_tabla.keys())))
+
+                for i, (msz, kem) in enumerate(osszes_termek):
+                    sor = 4 + i  # Minden termék új sorba kerül, a 4. sortól kezdve
+                    for nap_index in range(5): # Hétfőtől Péntekig
+                        kezdo_oszlop = nap_index * 4 + 1
+                        
+                        # Ha van adat erre a napra és erre a termékre, beírjuk
+                        mennyiseg = adatok_tabla.get((nap_index, msz, kem), 0)
+                        
+                        if mennyiseg > 0: # Csak akkor írjuk ki, ha volt kiszedés
+                            ws.cell(row=sor, column=kezdo_oszlop, value=msz)
+                            ws.cell(row=sor, column=kezdo_oszlop + 1, value=kem)
+                            ws.cell(row=sor, column=kezdo_oszlop + 2, value=mennyiseg)
 
                 output = BytesIO()
                 wb.save(output)
