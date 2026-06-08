@@ -10,17 +10,10 @@ from datetime import datetime
 # --- 1. OLDAL BEÁLLÍTÁSAI ---
 st.set_page_config(page_title="Balettcipő Raktár", layout="wide")
 
-# --- 2. FIREBASE INDÍTÁSA (Felhő-kompatibilis mód) ---
+# --- 2. FIREBASE INDÍTÁSA ---
 if not firebase_admin._apps:
-    # Ha van helyi kulcs, azt használja, ha nincs (a felhőben), akkor a titkos beállításokat
-    try:
-        cred = credentials.Certificate("firebase_kulcs.json")
-        firebase_admin.initialize_app(cred)
-    except Exception:
-        import json
-        fb_credentials = json.loads(st.secrets["textkey"])
-        cred = credentials.Certificate(fb_credentials)
-        firebase_admin.initialize_app(cred)
+    cred = credentials.Certificate("secrets.json")
+    firebase_admin.initialize_app(cred)
 
 db = firestore.client()
 
@@ -47,12 +40,8 @@ funkcio = st.sidebar.radio("Válassz felületet:", [
 docs = db.collection("keszlet").stream()
 firebase_adatok = {doc.id: doc.to_dict().get("mennyiseg", 0) for doc in docs}
 
-# ==============================================================================
-# A) RAKTÁRI GOMBOS FELÜLET
-# ==============================================================================
 if funkcio == "📱 Raktári Kiszedés (Gombos)":
     st.title("📱 Raktári Mozgás Rögzítése")
-    
     col1, col2, col3 = st.columns(3)
     with col1:
         st.subheader("1. Méret")
@@ -83,7 +72,6 @@ if funkcio == "📱 Raktári Kiszedés (Gombos)":
                 st.rerun()
             else:
                 st.error("A készlet nem mehet 0 alá!")
-                
     with b_col2:
         if st.button("✅ VISSZARAKÁS (+1 db)", use_container_width=True):
             uj_db = aktualis_keszlet + 1
@@ -92,9 +80,6 @@ if funkcio == "📱 Raktári Kiszedés (Gombos)":
             st.success(f"Sikeresen visszarakva 1 db! Új készlet: {uj_db}")
             st.rerun()
 
-# ==============================================================================
-# B) ÉRTÉKESÍTŐ ÉS ADMIN TÁBLÁZATOK
-# ==============================================================================
 else:
     if funkcio == "📊 Értékesítő (Csak olvasható)":
         st.title("📊 Balettcipő Élő Készlet (Olvasó)")
@@ -116,10 +101,8 @@ else:
                 matrix_df.at[k, m] = firebase_adatok.get(sku_id, 0)
         
         matrix_df["Keménység "] = matrix_df.index
-        
         oszlop_osszegek = [matrix_df[m].sum() for m in sizes]
         teljes_vegosszeg = sum(oszlop_osszegek)
-        ossz_sor = [str(x) if x > 0 else "" for x in oszlop_osszegek] + [f"🎁 VÉGÖSSZEG: {teljes_vegosszeg}"]
         
         formatted_df = matrix_df.copy()
         for m in sizes:
@@ -148,7 +131,6 @@ else:
             )
             st.dataframe(styled_df, use_container_width=True, height=390)
 
-    # --- EXCEL EXPORT GOMB ---
     st.write("---")
     st.subheader("📊 Gyártástervezési Napló Mentése")
     
