@@ -14,10 +14,30 @@ ADMIN_JELSZO = "admin123"
 st.set_page_config(page_title="Balettcipő Raktár", layout="wide")
 
 # --- 2. FIREBASE INDÍTÁSA (HIBAVÉDETT VERZIÓ) ---
+# --- 2. FIREBASE INDÍTÁSA (ST.SECRETS VERZIÓ) ---
+import json
+
 try:
     firebase_admin.get_app()
 except ValueError:
-    cred = credentials.Certificate("secrets.json")
+    # A Streamlit Secrets-ből olvassuk ki a kulcsokat
+    secrets = st.secrets["firestore"]
+    
+    # Készítünk egy ideiglenes szótárat a Firebase számára
+    cred_dict = {
+        "type": secrets["type"],
+        "project_id": secrets["project_id"],
+        "private_key_id": secrets["private_key_id"],
+        "private_key": secrets["private_key"].replace("\\n", "\n"),
+        "client_email": secrets["client_email"],
+        "client_id": secrets["client_id"],
+        "auth_uri": secrets["auth_uri"],
+        "token_uri": secrets["token_uri"],
+        "auth_provider_x509_cert_url": secrets["auth_provider_x509_cert_url"],
+        "client_x509_cert_url": secrets["client_x509_cert_url"]
+    }
+    
+    cred = credentials.Certificate(cred_dict)
     firebase_admin.initialize_app(cred)
 
 db = firestore.client()
