@@ -4,6 +4,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 from datetime import datetime
 from io import BytesIO
+import openpyxl
 
 # --- JELSZÓ BEÁLLÍTÁSA ---
 ADMIN_JELSZO = "admin123"
