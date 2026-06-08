@@ -13,8 +13,12 @@ ADMIN_JELSZO = "admin123"
 # --- 1. OLDAL BEÁLLÍTÁSAI ---
 st.set_page_config(page_title="Balettcipő Raktár", layout="wide")
 
-# --- 2. FIREBASE INDÍTÁSA ---
-if not firebase_admin._apps:
+# --- 2. FIREBASE INDÍTÁSA (HIBAVÉDETT VERZIÓ) ---
+try:
+    # Megpróbáljuk lekérni a már meglévő kapcsolatot
+    firebase_admin.get_app()
+except ValueError:
+    # Ha még nem létezik, csak akkor indítjuk el újonnan
     cred = credentials.Certificate("secrets.json")
     firebase_admin.initialize_app(cred)
 
