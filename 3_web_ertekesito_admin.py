@@ -133,23 +133,44 @@ elif funkcio == "🔐 Admin":
                         talalt = False
                         
                         # Sor keresése a 4. sortól a 30-ig
+                        # 3. Napok oszlopainak megfeleltetése
+                # Hétfő=1, Kedd=4, Szerda=7, Csütörtök=10, Péntek=13
+                nap_blokk_kezdete = {0: 1, 1: 4, 2: 7, 3: 10, 4: 13}
+
+                for doc in docs:
+                    adat = doc.to_dict()
+                    datum = pd.to_datetime(adat['datum'])
+                    nap_index = datum.dayofweek
+                    
+                    if 0 <= nap_index <= 4:
+                        sku_reszek = adat['sku'].split('_') 
+                        meret_db = str(sku_reszek[0]).strip().lower()
+                        kemenyseg_db = str(sku_reszek[2]).strip().lower()
+                        darab = int(adat.get('darabszam', 0))
+                        
+                        kezdo_oszlop = nap_blokk_kezdete[nap_index]
+                        talalt = False
+                        
+                        # Sor keresése (4. sortól a 30-ig)
                         for row in range(4, 31): 
-                    # 1. Excel cellák értékének beolvasása stringként
-                    val1 = ws.cell(row=row, column=kezdo_oszlop).value
-                    val2 = ws.cell(row=row, column=kezdo_oszlop + 1).value
-                    
-                    # 2. Megtisztítás: kezeljük a számokat és a stringeket is
-                    # Ha a szám 5.0, akkor az int() megoldja, ha szöveg, akkor a strip()
-                    cell_m = str(val1).replace('.0', '').strip().lower()
-                    cell_k = str(val2).strip().lower()
-                    
-                    # 3. Összehasonlítás
-                    if cell_m == meret_db and cell_k == kemenyseg_db:
-                        cel_oszlop = kezdo_oszlop + 2
-                        current_val = ws.cell(row=row, column=cel_oszlop).value or 0
-                        ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
-                        talalt = True
-                        break
+                            val1 = ws.cell(row=row, column=kezdo_oszlop).value
+                            val2 = ws.cell(row=row, column=kezdo_oszlop + 1).value
+                            
+                            cell_m = str(val1).replace('.0', '').strip().lower()
+                            cell_k = str(val2).strip().lower()
+                            
+                            if cell_m == meret_db and cell_k == kemenyseg_db:
+                                cel_oszlop = kezdo_oszlop + 2
+                                current_val = ws.cell(row=row, column=cel_oszlop).value or 0
+                                try:
+                                    ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
+                                except:
+                                    ws.cell(row=row, column=cel_oszlop).value = darab
+                                talalt = True
+                                break
+                        
+                        if not talalt:
+                            st.warning(f"Nem találom: {meret_db} és {kemenyseg_db}")
                         
                         # Ha nem talált egyezést, írja ki, mit keresett
                         if not talalt:
