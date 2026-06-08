@@ -151,15 +151,22 @@ elif funkcio == "🔐 Admin (Szerkeszthető)":
             if not edited_df.equals(matrix_df):
                 if st.button(f"💾 \"{w}\" mentése", key=f"btn_{w}", type="primary"):
                     batch = db.batch()
+                    valtozott_valami = False
                     for m in sizes:
                         for k in hardnesses:
                             sku_id = f"{m}_{w}_{k}"
                             uj_ertek = int(edited_df.at[k, m])
-                            doc_ref = db.collection("keszlet").document(sku_id)
-                            batch.update(doc_ref, {"mennyiseg": uj_ertek})
-                    batch.commit()
-                    st.success("Készlet sikeresen frissítve a felhőben!")
-                    st.rerun()
+                            regi_ertek = firebase_adatok.get(sku_id, 0)
+                            if uj_ertek != regi_ertek:
+                                doc_ref = db.collection("keszlet").document(sku_id)
+                                batch.set(doc_ref, {"mennyiseg": uj_ertek}, merge=True)
+                                valtozott_valami = True
+                    if valtozott_valami:
+                        batch.commit()
+                        st.success("Készlet sikeresen frissítve a felhőben!")
+                        st.rerun()
+                    else:
+                        st.info("Nem történt változás, nincs mit menteni.")
 
         # --- EXCEL EXPORT (Csak az admin látja!) ---
         st.write("---")
