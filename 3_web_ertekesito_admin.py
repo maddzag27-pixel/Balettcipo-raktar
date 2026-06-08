@@ -14,15 +14,17 @@ ADMIN_JELSZO = "admin123"
 st.set_page_config(page_title="Balettcipő Raktár", layout="wide")
 
 # --- FIREBASE INDÍTÁSA ---
-if not firebase_admin._apps:
-    secrets = st.secrets["firestore"]
-    cred_dict = dict(secrets)
-    cred_dict["private_key"] = cred_dict["private_key"].replace("\\n", "\n")
-    
-    cred = credentials.Certificate(cred_dict)
-    firebase_admin.initialize_app(cred)
+@st.cache_resource # Ez gondoskodik róla, hogy csak egyszer induljon el a kapcsolat
+def get_db():
+    if not firebase_admin._apps:
+        secrets = st.secrets["firestore"]
+        cred_dict = dict(secrets)
+        cred_dict["private_key"] = cred_dict["private_key"].replace("\\n", "\n")
+        cred = credentials.Certificate(cred_dict)
+        firebase_admin.initialize_app(cred)
+    return firestore.client()
 
-db = firestore.client()
+db = get_db() # Itt hívod meg a függvényt
 
 # --- 3. FIX ADATOK ---
 widths = ["M", "W", "XW", "XXW"]
