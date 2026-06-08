@@ -128,12 +128,17 @@ elif funkcio == "🔐 Admin":
                         
                         kezdo_oszlop = nap_blokk_kezdete[nap_index]
                         
-                        # Keresés a 4. sortól kezdve
+                        # Sor keresése a 4. sortól
                         for row in range(4, 50): 
-                            val1 = str(ws.cell(row=row, column=kezdo_oszlop).value or "").strip().lower()
-                            val2 = str(ws.cell(row=row, column=kezdo_oszlop + 1).value or "").strip().lower()
+                            raw_val1 = ws.cell(row=row, column=kezdo_oszlop).value
+                            raw_val2 = ws.cell(row=row, column=kezdo_oszlop + 1).value
                             
-                            # HA EGYEZIK:
+                            # KÍRÁS A KONZOLRA/APPRA, HOGY LÁSSUK MIT LÁT A GÉP
+                            # st.write(f"Sor {row}: Olvasva: '{raw_val1}' és '{raw_val2}'")
+                            
+                            val1 = str(raw_val1 or "").strip().lower()
+                            val2 = str(raw_val2 or "").strip().lower()
+                            
                             if val1 == meret_szel and val2 == kemenyseg:
                                 cel_oszlop = kezdo_oszlop + 2 # Darabszám oszlop
                                 current_val = ws.cell(row=row, column=cel_oszlop).value or 0
