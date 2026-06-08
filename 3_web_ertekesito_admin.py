@@ -117,10 +117,7 @@ if funkcio == "📱 Raktári Kiszedés (Gombos)":
         st.rerun()
 
 # ==============================================================================
-# B) ÉRTÉKESÍTŐ FELÜLET
-# ==============================================================================
-# ==============================================================================
-# B) ÉRTÉKESÍTŐ FELÜLET (Javított, színes verzió)
+# B) ÉRTÉKESÍTŐ FELÜLET (Teljesen javított, színes verzió)
 # ==============================================================================
 elif funkcio == "📊 Értékesítő (Csak olvasható)":
     st.title("📊 Balettcipő Élő Készlet")
@@ -128,19 +125,22 @@ elif funkcio == "📊 Értékesítő (Csak olvasható)":
     
     for w in widths:
         st.subheader(f"📦 \"{w}\" Szélesség")
-        df = get_matrix(adatok, w)
+        df = get_matrix(adatok, w) # Ez már tartalmazza a Keménység(bal), Keménység(jobb) oszlopokat és az ÖSSZESEN sort
         
-        # A stílus alkalmazása:
-        # A 'Keménység ' és 'Keménység ' oszlopok értékei alapján színezzük a sorokat
+        # Stílus függvény: színezi a sorokat a bal oldali keménység alapján
         def szinezo_df(row):
-            kemenyseg = row["Keménység "]
+            # Ha az ÖSSZESEN sorról van szó, ne színezze (vagy adjon neki semleges színt)
+            if row["Keménység (bal)"] == "ÖSSZESEN":
+                return ['background-color: #f0f0f0'] * len(row)
+            
+            kemenyseg = row["Keménység (bal)"]
             szin = kemenyseg_szinek.get(kemenyseg, "#FFFFFF")
             return [f'background-color: {szin}'] * len(row)
 
         # Alkalmazzuk a stílust
         styled_df = df.style.apply(szinezo_df, axis=1)
         
-        # Megjelenítés: a stílus objektumot adjuk át a st.dataframe-nek
+        # Megjelenítés
         st.dataframe(styled_df, use_container_width=True)
 # ==============================================================================
 # C) ADMIN FELÜLET (Teljesen javított kód)
