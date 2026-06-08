@@ -134,22 +134,22 @@ elif funkcio == "🔐 Admin":
                         
                         # Sor keresése a 4. sortól a 30-ig
                         for row in range(4, 31): 
-                            # Excel értékeket is kisbetűssé alakítjuk az összehasonlításhoz
-                            cell_m_raw = ws.cell(row=row, column=kezdo_oszlop).value
-                            cell_k_raw = ws.cell(row=row, column=kezdo_oszlop + 1).value
-                            
-                            cell_m = str(cell_m_raw).strip().lower()
-                            cell_k = str(cell_k_raw).strip().lower()
-                            
-                            if cell_m == meret_db and cell_k == kemenyseg_db:
-                                cel_oszlop = kezdo_oszlop + 2
-                                current_val = ws.cell(row=row, column=cel_oszlop).value or 0
-                                try:
-                                    ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
-                                except:
-                                    ws.cell(row=row, column=cel_oszlop).value = darab
-                                talalt = True
-                                break
+                    # 1. Excel cellák értékének beolvasása stringként
+                    val1 = ws.cell(row=row, column=kezdo_oszlop).value
+                    val2 = ws.cell(row=row, column=kezdo_oszlop + 1).value
+                    
+                    # 2. Megtisztítás: kezeljük a számokat és a stringeket is
+                    # Ha a szám 5.0, akkor az int() megoldja, ha szöveg, akkor a strip()
+                    cell_m = str(val1).replace('.0', '').strip().lower()
+                    cell_k = str(val2).strip().lower()
+                    
+                    # 3. Összehasonlítás
+                    if cell_m == meret_db and cell_k == kemenyseg_db:
+                        cel_oszlop = kezdo_oszlop + 2
+                        current_val = ws.cell(row=row, column=cel_oszlop).value or 0
+                        ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
+                        talalt = True
+                        break
                         
                         # Ha nem talált egyezést, írja ki, mit keresett
                         if not talalt:
