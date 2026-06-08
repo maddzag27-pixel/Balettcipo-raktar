@@ -132,23 +132,29 @@ elif funkcio == "🔐 Admin":
                         kezdo_oszlop = nap_blokk_kezdete[nap_index]
                         talalt = False
                         
-                        # Sor keresése a 4. sortól a 30-ig
-                        for row in range(4, 31): 
-                            val1 = ws.cell(row=row, column=kezdo_oszlop).value
-                            val2 = ws.cell(row=row, column=kezdo_oszlop + 1).value
-                            
-                            cell_m = str(val1).replace('.0', '').strip().lower()
-                            cell_k = str(val2).strip().lower()
-                            
-                            if cell_m == meret_db and cell_k == kemenyseg_db:
-                                cel_oszlop = kezdo_oszlop + 2
-                                current_val = ws.cell(row=row, column=cel_oszlop).value or 0
-                                try:
-                                    ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
-                                except:
-                                    ws.cell(row=row, column=cel_oszlop).value = darab
-                                talalt = True
-                                break
+                        # A 4. sortól a 30-ig keressük a sorokat
+                for row in range(4, 31): 
+                    # Excel 1. oszlop (Méret, pl: 8W)
+                    val1 = ws.cell(row=row, column=kezdo_oszlop).value
+                    # Excel 2. oszlop (Keménység, pl: XST)
+                    val2 = ws.cell(row=row, column=kezdo_oszlop + 1).value
+                    
+                    # Firebase adatok összevonása a kereséshez:
+                    # sku_reszek[0] = 8, sku_reszek[1] = W -> így lesz "8w"
+                    meret_es_szelesseg_db = (str(sku_reszek[0]) + str(sku_reszek[1])).strip().lower()
+                    kemenyseg_db = str(sku_reszek[2]).strip().lower()
+                    
+                    # Excel cellák tisztítása
+                    cell_m = str(val1).replace('.0', '').strip().lower()
+                    cell_k = str(val2).strip().lower()
+                    
+                    # Egyezés vizsgálata
+                    if cell_m == meret_es_szelesseg_db and cell_k == kemenyseg_db:
+                        cel_oszlop = kezdo_oszlop + 2
+                        current_val = ws.cell(row=row, column=cel_oszlop).value or 0
+                        ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
+                        talalt = True
+                        break
                         
                         if not talalt:
                             st.warning(f"Nem találom: {meret_db} és {kemenyseg_db}")
