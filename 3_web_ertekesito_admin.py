@@ -115,6 +115,7 @@ elif funkcio == "🔐 Admin":
                 # 3. Napok oszlopainak megfeleltetése: Hétfő (C=3), Kedd (F=6), Szerda (I=9), Csütörtök (L=12), Péntek (O=15)
                 nap_oszlop_darab = {0: 3, 1: 6, 2: 9, 3: 12, 4: 15}
 
+# ... előtte levő kód ...
                 for doc in docs:
                     adat = doc.to_dict()
                     datum = pd.to_datetime(adat['datum'])
@@ -123,22 +124,30 @@ elif funkcio == "🔐 Admin":
                     if nap_index in nap_oszlop_darab:
                         sku_reszek = adat['sku'].split('_') 
                         # SKU részek: [Méret, Szélesség, Keménység]
-                        meret = str(sku_reszek[0])
-                        kemenyseg = str(sku_reszek[2])
-                        darab = int(adat['darabszam'])
+                        # A sablonban csak Méret (0) és Keménység (2) van
+                        meret_db = str(sku_reszek[0]).strip()
+                        kemenyseg_db = str(sku_reszek[2]).strip()
+                        darab = int(adat.get('darabszam', 0))
                         
-                        # Sor keresése (Sablon 4. sortól kezdődik a minta alapján)
-                        for row in range(4, 50): # Növeltem 50-re a biztonság kedvéért
-                            cell_m = str(ws.cell(row=row, column=nap_oszlop_darab[nap_index]-2).value)
-                            cell_k = str(ws.cell(row=row, column=nap_oszlop_darab[nap_index]-1).value)
+                        # Sor keresése (Sablon 4-től 50-ig)
+                        for row in range(4, 50):
+                            # Cellák beolvasása stringként, szóközök nélkül
+                            cell_m = str(ws.cell(row=row, column=1).value or "").strip()
+                            cell_k = str(ws.cell(row=row, column=2).value or "").strip()
                             
-                            # Itt ellenőrizzük, hogy a cellaértékek egyeznek-e a Firebase adatokkal
-                            if cell_m.strip() == meret and cell_k.strip() == kemenyseg:
+                            # Debug: ha látni akarod, mit hasonlít össze, vedd ki a kommentet:
+                            # st.write(f"Keresve: {meret_db}-{kemenyseg_db}, Talált: {cell_m}-{cell_k}")
+                            
+                            if cell_m == meret_db and cell_k == kemenyseg_db:
                                 cel_oszlop = nap_oszlop_darab[nap_index]
                                 current_val = ws.cell(row=row, column=cel_oszlop).value or 0
-                                ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
-                                # Ne törjük meg a ciklust (break), mert egy nap többször is lehet kiszedés ugyanabból a típusból
-                
+                                # Ha az érték nem szám, 0-nak vesszük
+                                try:
+                                    ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
+                                except:
+                                    ws.cell(row=row, column=cel_oszlop).value = darab
+                                break
+                                
                 output = BytesIO()
                 wb.save(output)
                 st.download_button(
