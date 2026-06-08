@@ -100,29 +100,42 @@ elif funkcio == "📊 Értékesítő":
 elif funkcio == "🔐 Admin":
     st.title("🔐 Adminisztráció")
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
-        # --- EXPORTÁLÁS ---
+# --- EXPORTÁLÁS: Fix sablon formátumra (Blokkokban) ---
         st.subheader("📊 Adatkezelés")
-        if st.button("📥 Heti sablon letöltése (Pontos sablon szerinti)"):
+        if st.button("📥 Heti sablon letöltése (Blokkos elrendezés)"):
             naplo_docs = db.collection("naplo").stream()
             data = [doc.to_dict() for doc in naplo_docs]
+            
             if data:
                 df = pd.DataFrame(data)
                 df['datum'] = pd.to_datetime(df['datum'])
+                
+                # Segédoszlopok a bontáshoz
+                df[['Méret', 'Szélesség', 'Keménység']] = df['sku'].str.split('_', expand=True)
+                df['Méret_Szélesség'] = df['Méret'] + ' ' + df['Szélesség']
+                
                 nap_nevek = {0: 'HÉTFŐ', 1: 'KEDD', 2: 'SZERDA', 3: 'CSÜTÖRTÖK', 4: 'PÉNTEK'}
-                master_df = pd.DataFrame([sku.split('_') for sku in [f"{m}_M_{k}" for m in sizes for k in hardnesses]], 
-                                         columns=['Méret', 'Szélesség', 'Keménység'])
+                
                 output = BytesIO()
                 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    final_report = master_df.copy()
+                    final_df = pd.DataFrame()
+                    
                     for i in range(5):
                         nap_df = df[df['datum'].dt.dayofweek == i].copy()
-                        nap_df[['Méret', 'Szélesség', 'Keménység']] = nap_df['sku'].str.split('_', expand=True)
-                        daily_sum = nap_df.groupby(['Méret', 'Keménység'])['darabszam'].sum().reset_index()
-                        daily_sum.rename(columns={'darabszam': 'Darab'}, inplace=True)
-                        final_report = final_report.merge(daily_sum, on=['Méret', 'Keménység'], how='left').fillna(0)
-                        final_report.rename(columns={'Darab': f'{nap_nevek[i]} - Darab'}, inplace=True)
-                    final_report.to_excel(writer, index=False, sheet_name='Heti_Sablon')
-                st.download_button("📥 Heti sablon letöltése", data=output.getvalue(), file_name="Heti_Kiszedes.xlsx", mime="application/vnd.ms-excel")
+                        daily_sum = nap_df.groupby(['Méret_Szélesség', 'Keménység'])['darabszam'].sum().reset_index()
+                        daily_sum.columns = [f'{nap_nevek[i]}: Méret/Szél', f'{nap_nevek[i]}: Keménység', f'{nap_nevek[i]}: Darab']
+                        
+                        # Egymás mellé fűzzük a napokat
+                        final_df = pd.concat([final_df, daily_sum], axis=1)
+                        
+                    final_df.to_excel(writer, index=False, sheet_name='Heti_Sablon')
+                
+                st.download_button(
+                    label="📥 Heti sablon letöltése (Blokkos)",
+                    data=output.getvalue(),
+                    file_name="Heti_Kiszedes_Blokkos.xlsx",
+                    mime="application/vnd.ms-excel"
+                )
             else:
                 st.warning("A napló üres!")
 
