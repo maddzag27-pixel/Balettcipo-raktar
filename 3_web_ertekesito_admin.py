@@ -143,21 +143,41 @@ elif funkcio == "📊 Értékesítő (Csak olvasható)":
         # Megjelenítés: a stílus objektumot adjuk át a st.dataframe-nek
         st.dataframe(styled_df, use_container_width=True)
 # ==============================================================================
-# C) ADMIN FELÜLET
+# C) ADMIN FELÜLET (Javítva)
 # ==============================================================================
 elif funkcio == "🔐 Admin (Szerkeszthető)":
     st.title("🔐 Adminisztrátori Készletkezelés")
+    
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
         adatok = get_firebase_data()
+        
         for w in widths:
-            st.subheader(f"🛠️ \"{w}\" szerkesztése")
-            matrix_df = get_matrix(adatok, w).drop(columns=["ÖSSZESEN"]).drop(index=["ÖSSZESEN"])
+            st.subheader(f"🛠️ \"{w}\" szélesség szerkesztése")
             
-            edited_df = st.data_editor(matrix_df)
-            if st.button(f"💾 Mentés: {w}"):
+            # --- ITT A JAVÍTÁS: Létrehozunk egy tiszta mátrixot összesítés nélkül ---
+            matrix_df = pd.DataFrame(0, index=hardnesses, columns=sizes)
+            for m in sizes:
+                for k in hardnesses:
+                    matrix_df.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
+            
+            # Szerkeszthető tábla (most már nem kell .drop, mert ez tiszta)
+            edited_df = st.data_editor(matrix_df, use_container_width=True)
+            
+            if st.button(f"💾 Mentés: {w}", key=f"mentes_{w}"):
+                batch = db.batch()
+                valtozas = False
+                
                 for m in sizes:
                     for k in hardnesses:
-                        sku_id = f"{m}_{w}_{k}"
-                        if int(edited_df.at[k, m]) != adatok.get(sku_id, 0):
-                            db.collection("keszlet").document(sku_id).set({"mennyiseg": int(edited_df.at[k, m])})
-                st.rerun()
+                        uj_ertek = int(edited_df.at[k, m])
+                        regi_ertek = adatok.get(f"{m}_{w}_{k}", 0)
+                        
+                        if uj_ertek != regi_ertek:
+                            doc_ref = db.collection("keszlet").document(f"{m}_{w}_{k}")
+                            batch.set(doc_ref, {"mennyiseg": uj_ertek})
+                            valtozas = True
+                
+                if valtozas:
+                    batch.commit()
+                    st.success(f"✅ {w} frissítve!")
+                    st.rerun()
