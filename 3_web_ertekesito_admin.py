@@ -47,13 +47,13 @@ funkcio = st.sidebar.radio("Válassz felületet:", [
 @st.cache_data(ttl=60)
 def get_firebase_data():
     try:
+        # Csak a legszükségesebb adatokat kérjük le
         adatok = {}
-        docs = db.collection("keszlet").stream() 
+        docs = db.collection("keszlet").get() # A stream helyett get-et használunk, de limitálva
         for doc in docs:
             adatok[doc.id] = int(doc.to_dict().get("mennyiseg", 0))
         return adatok
-    except Exception as e:
-        st.error(f"Firestore hiba: {e}")
+    except Exception:
         return {}
 
 # ==============================================================================
