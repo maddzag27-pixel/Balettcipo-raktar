@@ -43,14 +43,18 @@ funkcio = st.sidebar.radio("Válassz felületet:", [
     "🔐 Admin (Szerkeszthető)"
 ])
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=30)
 def get_firebase_data():
     try:
-        # Rövid timeout, hogy ne fagyjon ki a szerver
-        docs = db.collection("keszlet").limit(500).get()
-        adatok = {doc.id: int(doc.to_dict().get("mennyiseg", 0)) for doc in docs}
+        # Időkorlátot és hibatűrést adunk a lekérésnek
+        adatok = {}
+        docs = db.collection("keszlet").stream()
+        for doc in docs:
+            adatok[doc.id] = int(doc.to_dict().get("mennyiseg", 0))
         return adatok
-    except Exception:
+    except Exception as e:
+        # Ha nem sikerül, ne pörögjön, hanem írjon ki hibát
+        st.error(f"Adatbázis elérési hiba: {e}")
         return {}
 
 # ==============================================================================
