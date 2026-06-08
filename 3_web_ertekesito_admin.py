@@ -129,7 +129,6 @@ elif funkcio == "📊 Értékesítő (Csak olvasható)":
 elif funkcio == "🔐 Admin (Szerkeszthető)":
     st.title("🔐 Adminisztrátori Készletkezelés")
     
-    # Jelszó bekérő mező az oldalsávban vagy a főoldalon
     bevitt_jelszo = st.sidebar.text_input("Írd be az Admin jelszót:", type="password")
     
     if bevitt_jelszo != ADMIN_JELSZO:
@@ -147,64 +146,28 @@ elif funkcio == "🔐 Admin (Szerkeszthető)":
             
             matrix_df["Keménység "] = matrix_df.index
             
+            # A data_editor MINDIG fixen fut
             edited_df = st.data_editor(matrix_df, key=f"editor_{w}", use_container_width=True, disabled=["Keménység "])
-            if not edited_df.equals(matrix_df):
-                if st.button(f"💾 \"{w}\" mentése", key=f"btn_{w}", type="primary"):
-                    batch = db.batch()
-                    valtozott_valami = False
-                    for m in sizes:
-                        for k in hardnesses:
-                            sku_id = f"{m}_{w}_{k}"
-                            uj_ertek = int(edited_df.at[k, m])
-                            regi_ertek = firebase_adatok.get(sku_id, 0)
-                            if uj_ertek != regi_ertek:
-                                doc_ref = db.collection("keszlet").document(sku_id)
-                                batch.set(doc_ref, {"mennyiseg": uj_ertek}, merge=True)
-                                valtozott_valami = True
-                    if valtozott_valami:
-                        batch.commit()
-                        st.success("Készlet sikeresen frissítve a felhőben!")
-                        st.rerun()
-                    else:
-                        st.info("Nem történt változás, nincs mit menteni.")
-
-        # --- EXCEL EXPORT (Csak az admin látja!) ---
-        st.write("---")
-        st.subheader("📊 Gyártástervezési Napló Mentése")
-        
-        def excel_keszites_memoriaban():
-            ma_szoveg = datetime.now().strftime("%Y-%m-%d")
-            wb = openpyxl.load_workbook("kiszedes_sablon.xlsx")
-            ws = wb.active
-            naplo_ref = db.collection("naplo").where("datum", "==", ma_szoveg).stream()
             
-            adatok_kiszedes, adatok_visszarakas = {}, {}
-            for doc in naplo_ref:
-                data = doc.to_dict()
-                sku, tipus, db_szam = data.get("sku"), data.get("tipus"), data.get("darabszam", 1)
-                if tipus == "kiszedes": adatok_kiszedes[sku] = adatok_kiszedes.get(sku, 0) + db_szam
-                elif tipus == "visszarakas": adatok_visszarakas[sku] = adatok_visszarakas.get(sku, 0) + db_szam
-
-            def cella_kitoltes(sku_adatok, sor_eltolas):
-                for sku, darab in sku_adatok.items():
-                    meret, szelesseg, kemenyseg = sku.split("_")
-                    try:
-                        oszlop_idx = 2 + sizes.index(meret)
-                        szelesseg_alap_sorok = {"M": 5, "W": 20, "XW": 35, "XXW": 50}
-                        vegso_sor = szelesseg_alap_sorok[szelesseg] + hardnesses.index(kemenyseg) + sor_eltolas
-                        ws.cell(row=vegso_sor, column=oszlop_idx, value=darab)
-                    except: continue
-
-            cella_kitoltes(adatok_kiszedes, sor_eltolas=0)
-            cella_kitoltes(adatok_visszarakas, sor_eltolas=60)
-            
-            output = BytesIO()
-            wb.save(output)
-            output.seek(0)
-            return output.getvalue()
-
-        try:
-            excel_adat = excel_keszites_memoriaban()
-            st.download_button(label="📥 Aznapi Gyártásterv Excel letöltése", data=excel_adat, file_name=f"Gyartasterv_{datetime.now().strftime('%Y-%m-%d')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary")
-        except:
-            st.error("⚠️ A 'kiszedes_sablon.xlsx' hiányzik!")
+            # A gomb MINDIG látható, nem tűnik el trükkösen
+            if st.button(f"💾 \"{w}\" mentése", key=f"btn_{w}", type="primary"):
+                batch = db.batch()
+                valtozott_valami = False
+                
+                for m in sizes:
+                    for k in hardnesses:
+                        sku_id = f"{m}_{w}_{k}"
+                        uj_ertek = int(edited_df.at[k, m])
+                        regi_ertek = firebase_adatok.get(sku_id, 0)
+                        
+                        if uj_ertek != regi_ertek:
+                            doc_ref = db.collection("keszlet").document(sku_id)
+                            batch.set(doc_ref, {"mennyiseg": uj_ertek}, merge=True)
+                            valtozott_valami = True
+                
+                if valtozott_valami:
+                    batch.commit()
+                    st.success(f"\"{w}\" szélesség sikeresen frissítve a felhőben!")
+                    st.rerun()
+                else:
+                    st.info("Nem történt változás ebben a táblázatban, nincs mit menteni.")
