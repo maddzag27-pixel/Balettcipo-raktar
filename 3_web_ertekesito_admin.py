@@ -13,17 +13,9 @@ ADMIN_JELSZO = "admin123"
 # --- 1. OLDAL BEÁLLÍTÁSAI ---
 st.set_page_config(page_title="Balettcipő Raktár", layout="wide")
 
-# --- 2. FIREBASE INDÍTÁSA (HIBAVÉDETT VERZIÓ) ---
-# --- 2. FIREBASE INDÍTÁSA (ST.SECRETS VERZIÓ) ---
-import json
-
-try:
-    firebase_admin.get_app()
-except ValueError:
-    # A Streamlit Secrets-ből olvassuk ki a kulcsokat
+# --- 2. FIREBASE INDÍTÁSA (GARANTÁLTAN EGYSZERI) ---
+if not firebase_admin._apps:
     secrets = st.secrets["firestore"]
-    
-    # Készítünk egy ideiglenes szótárat a Firebase számára
     cred_dict = {
         "type": secrets["type"],
         "project_id": secrets["project_id"],
@@ -36,7 +28,6 @@ except ValueError:
         "auth_provider_x509_cert_url": secrets["auth_provider_x509_cert_url"],
         "client_x509_cert_url": secrets["client_x509_cert_url"]
     }
-    
     cred = credentials.Certificate(cred_dict)
     firebase_admin.initialize_app(cred)
 
