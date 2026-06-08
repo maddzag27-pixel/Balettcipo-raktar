@@ -134,7 +134,7 @@ elif funkcio == "🔐 Admin":
                             raw_val2 = ws.cell(row=row, column=kezdo_oszlop + 1).value
                             
                             # KÍRÁS A KONZOLRA/APPRA, HOGY LÁSSUK MIT LÁT A GÉP
-                            # st.write(f"Sor {row}: Olvasva: '{raw_val1}' és '{raw_val2}'")
+                            st.write(f"Sor {row}: Olvasva: '{raw_val1}' és '{raw_val2}'")
                             
                             val1 = str(raw_val1 or "").strip().lower()
                             val2 = str(raw_val2 or "").strip().lower()
