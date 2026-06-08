@@ -103,80 +103,55 @@ elif funkcio == "🔐 Admin":
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
 # --- EXPORTÁLÁS: Fix sablonba (kiszedes_sablon.xlsx) ---
         st.subheader("📊 Adatkezelés")
-        if st.button("📥 Heti sablon kitöltése adatokkal"):
-            # ... a kód korábbi része ...
-                # Tesztként kiírjuk a 4. sor tartalmát az Admin felületre, hogy lássuk az oszlopokat
-                debug_sor = [ws.cell(row=4, column=i).value for i in range(1, 16)]
-                st.write(f"Excel 4. sor tartalma: {debug_sor}")
-
-                for doc in docs:
-                    # ... (az előző kódod logikája)
+if st.button("📥 Heti sablon kitöltése adatokkal"):
             try:
                 fajlnev = "kiszedes_sablon.xlsx" 
                 wb = openpyxl.load_workbook(fajlnev)
                 ws = wb.active
-
-# Adatok lekérése listaként
-                docs = list(db.collection("naplo").stream())
-                st.write(f"Talált dokumentumok száma a naplóban: {len(docs)}")
                 
-                # Napok oszlopainak megfeleltetése
+                # 1. DEBUG: nézzük meg, mi van az Excel 4. sorában!
+                debug_sor = [ws.cell(row=4, column=i).value for i in range(1, 16)]
+                st.write(f"Excel 4. sor tartalma: {debug_sor}")
+
+                # 2. Adatok lekérése
+                docs = list(db.collection("naplo").stream())
+                st.write(f"Talált dokumentumok: {len(docs)}")
+
+                # 3. Napok oszlopai
                 nap_blokk_kezdete = {0: 1, 1: 4, 2: 7, 3: 10, 4: 13}
 
                 for doc in docs:
                     adat = doc.to_dict()
-                    st.write(f"Feldolgozás alatt: {adat}") # Ez segít látni, mi történik
-                    
                     datum = pd.to_datetime(adat['datum'])
                     nap_index = datum.dayofweek
                     
                     if 0 <= nap_index <= 4:
                         sku_reszek = adat['sku'].split('_') 
-                        meret_db = str(sku_reszek[0]).strip().lower()
-                        kemenyseg_db = str(sku_reszek[2]).strip().lower()
+                        # Összevonjuk a méretet és szélességet (pl: '8' + 'W' = '8w')
+                        meret_szel = (str(sku_reszek[0]) + str(sku_reszek[1])).lower()
+                        kemenyseg = str(sku_reszek[2]).lower()
                         darab = int(adat.get('darabszam', 0))
                         
                         kezdo_oszlop = nap_blokk_kezdete[nap_index]
-                        talalt = False
                         
-                        # A 4. sortól a 30-ig keressük a sorokat
-                for row in range(4, 31): 
-                    # Excel értékek
-                    val1 = str(ws.cell(row=row, column=kezdo_oszlop).value or "").strip().lower()
-                    val2 = str(ws.cell(row=row, column=kezdo_oszlop + 1).value or "").strip().lower()
-                    
-                    # Firebase SKU átalakítása kereshető formára:
-                    # '8_W_XST' -> '8w' és 'xst'
-                    sku_reszek = adat['sku'].split('_') 
-                    firebase_meret_szel = (str(sku_reszek[0]) + str(sku_reszek[1])).lower()
-                    firebase_kemenyseg = str(sku_reszek[2]).lower()
-                    
-                    # Logikai egyezés:
-                    # Ha az Excel 1. oszlop (pl "8w") == Firebase '8w'
-                    # ÉS az Excel 2. oszlop (pl "xst") == Firebase 'xst'
-                    if val1 == firebase_meret_szel and val2 == firebase_kemenyseg:
-                        cel_oszlop = kezdo_oszlop + 2
-                        current_val = ws.cell(row=row, column=cel_oszlop).value or 0
-                        ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
-                        talalt = True
-                        break
-                        
-                        if not talalt:
-                            st.warning(f"Nem találom: {meret_db} és {kemenyseg_db}")
-                        
-                        # Ha nem talált egyezést, írja ki, mit keresett
-                        if not talalt:
-                            st.warning(f"Nem találom: {meret_db} és {kemenyseg_db}")
+                        # Sor keresése (4. sortól a 30-ig)
+                        for row in range(4, 31): 
+                            val1 = str(ws.cell(row=row, column=kezdo_oszlop).value or "").strip().lower()
+                            val2 = str(ws.cell(row=row, column=kezdo_oszlop + 1).value or "").strip().lower()
+                            
+                            if val1 == meret_szel and val2 == kemenyseg:
+                                cel_oszlop = kezdo_oszlop + 2
+                                current_val = ws.cell(row=row, column=cel_oszlop).value or 0
+                                ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
+                                break
+
+                # 4. Mentés
                 output = BytesIO()
                 wb.save(output)
-                st.download_button(
-                    label="📥 Kitöltött sablon letöltése",
-                    data=output.getvalue(),
-                    file_name="Kitoltott_kiszedes.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
+                st.download_button("📥 Letöltés", data=output.getvalue(), file_name="Kitoltott_kiszedes.xlsx")
+                
             except Exception as e:
-                st.error(f"Hiba történt a kitöltés során: {e}")
+                st.error(f"Hiba történt: {e}")
         # --- KÉSZLET SZERKESZTÉSE ---
         st.subheader("📦 Készlet Szerkesztése")
         adatok = get_firebase_data()
