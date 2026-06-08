@@ -170,4 +170,28 @@ elif funkcio == "🔐 Admin":
                 st.error(f"Hiba történt: {e}")
 
         st.subheader("📦 Készlet Szerkesztése")
+        # --- KÉSZLET SZERKESZTÉSE ---
+        st.subheader("📦 Készlet Szerkesztése")
+        adatok = get_firebase_data()
+        
+        for w in widths:
+            st.markdown(f"**\"{w}\" szélesség**")
+            m_df = pd.DataFrame(0, index=hardnesses, columns=sizes)
+            for m in sizes:
+                for k in hardnesses:
+                    m_df.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
+            
+            # Táblázatos szerkesztő
+            edit = st.data_editor(m_df, use_container_width=True, key=f"ed_{w}")
+            
+            # Mentés gomb
+            if st.button(f"💾 Mentés: {w}", key=f"btn_{w}"):
+                batch = db.batch()
+                for m in sizes:
+                    for k in hardnesses:
+                        if int(edit.at[k, m]) != adatok.get(f"{m}_{w}_{k}", 0):
+                            batch.set(db.collection("keszlet").document(f"{m}_{w}_{k}"), {"mennyiseg": int(edit.at[k, m])})
+                batch.commit()
+                st.success(f"A(z) {w} szélesség készlete frissítve!")
+                st.rerun()
         # ... (készlet szerkesztő rész maradhat ahogy volt)
