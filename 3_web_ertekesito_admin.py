@@ -115,37 +115,38 @@ elif funkcio == "🔐 Admin":
                 # 3. Napok oszlopainak megfeleltetése: Hétfő (C=3), Kedd (F=6), Szerda (I=9), Csütörtök (L=12), Péntek (O=15)
                 nap_oszlop_darab = {0: 3, 1: 6, 2: 9, 3: 12, 4: 15}
 
-# 3. Napok oszlopainak megfeleltetése:
-                # Hétfő: Méret(1), Keménység(2), Darab(3)
-                # Kedd: Méret(4), Keménység(5), Darab(6)
-                # ...
-                # A képlet: Darab oszlop = (nap_index * 3) + 3
-                
+# 3. Napok oszlopainak megfeleltetése: 1-től számolva
+                nap_oszlop_darab = {0: 3, 1: 6, 2: 9, 3: 12, 4: 15}
+
                 for doc in docs:
                     adat = doc.to_dict()
                     datum = pd.to_datetime(adat['datum'])
-                    nap_index = datum.dayofweek # 0=Hétfő, 4=Péntek
+                    nap_index = datum.dayofweek
                     
                     if 0 <= nap_index <= 4:
+                        # [Méret, Szélesség, Keménység] -> [0, 1, 2]
                         sku_reszek = adat['sku'].split('_') 
                         meret_db = str(sku_reszek[0]).strip()
                         kemenyseg_db = str(sku_reszek[2]).strip()
                         darab = int(adat.get('darabszam', 0))
                         
-                        # Meghatározzuk, melyik blokkba tartozik a nap
-                        darab_oszlop = (nap_index * 3) + 3
-                        meret_oszlop = darab_oszlop - 2
-                        kemenyseg_oszlop = darab_oszlop - 1
-                        
-                        # Sor keresése (A minta alapján a 4. sortól kezdődik a lista)
+                        talalt = False
+                        # Sor keresése: a sablonban a 4. sortól indulnak az adatok
                         for row in range(4, 50): 
-                            cell_m = str(ws.cell(row=row, column=meret_oszlop).value or "").strip()
-                            cell_k = str(ws.cell(row=row, column=kemenyseg_oszlop).value or "").strip()
+                            # Cellaértékek lehívása
+                            cell_m = str(ws.cell(row=row, column=1).value or "").strip()
+                            cell_k = str(ws.cell(row=row, column=2).value or "").strip()
                             
+                            # Ellenőrzés: ha az első oszlopban (Méret) és 2. oszlopban (Keménység) egyezést találunk
                             if cell_m == meret_db and cell_k == kemenyseg_db:
-                                current_val = ws.cell(row=row, column=darab_oszlop).value or 0
-                                ws.cell(row=row, column=darab_oszlop).value = int(current_val) + darab
+                                cel_oszlop = nap_oszlop_darab[nap_index]
+                                current_val = ws.cell(row=row, column=cel_oszlop).value or 0
+                                ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
+                                talalt = True
                                 break
+                        
+                        if not talalt:
+                            st.warning(f"Nem találtam egyező sort erre: {meret_db} / {kemenyseg_db}")
                 output = BytesIO()
                 wb.save(output)
                 st.download_button(
