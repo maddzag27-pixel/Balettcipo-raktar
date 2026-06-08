@@ -108,67 +108,82 @@ elif funkcio == "🔐 Admin":
                 wb = openpyxl.Workbook()
                 ws = wb.active
                 
-                # Fejlécek függvénye
-                def iras_fejlec(ws, kezdo_sor, cim):
+                # Stílusok
+                from openpyxl.styles import Alignment, Border, Side
+                thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), 
+                                     top=Side(style='thin'), bottom=Side(style='thin'))
+                center = Alignment(horizontal="center", vertical="center")
+
+                def iras_blokkba(adat_szotar, kezdo_sor, cim):
+                    # Cím egyesítése
+                    ws.merge_cells(start_row=kezdo_sor, start_column=1, end_row=kezdo_sor, end_column=19)
                     ws.cell(row=kezdo_sor, column=1, value=cim).font = Font(bold=True, size=14)
-                    napok = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek"]
-                    for i, nap in enumerate(napok):
+                    ws.cell(row=kezdo_sor, column=1).alignment = center
+                    
+                    # Napok egyesítése (3 oszlop per nap)
+                    for i, nap in enumerate(["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek"]):
                         col = i*4 + 1
-                        ws.cell(row=kezdo_sor+1, column=col, value=nap)
+                        ws.merge_cells(start_row=kezdo_sor+1, start_column=col, end_row=kezdo_sor+1, end_column=col+2)
+                        ws.cell(row=kezdo_sor+1, column=col, value=nap).font = Font(bold=True)
+                        ws.cell(row=kezdo_sor+1, column=col).alignment = center
                         ws.cell(row=kezdo_sor+2, column=col, value="Méret")
                         ws.cell(row=kezdo_sor+2, column=col+1, value="Keménység")
                         ws.cell(row=kezdo_sor+2, column=col+2, value="Darab")
 
-                # Adatok szétválogatása
-                docs = list(db.collection("naplo").stream())
-                kiszedesek, visszarakasok = {}, {}
-                for doc in docs:
-                    adat = doc.to_dict()
-                    nap_index = pd.to_datetime(adat['datum']).dayofweek
-                    if 0 <= nap_index <= 4:
-                        sku_reszek = adat['sku'].split('_')
-                        msz = (str(sku_reszek[0]) + str(sku_reszek[1])).lower()
-                        kem = str(sku_reszek[2]).lower()
-                        db_sz = int(adat.get('darabszam', 0))
-                        kulcs = (nap_index, msz, kem)
-                        if adat['tipus'] == 'kiszedes': kiszedesek[kulcs] = kiszedesek.get(kulcs, 0) + db_sz
-                        else: visszarakasok[kulcs] = visszarakasok.get(kulcs, 0) + db_sz
-
-                # Blokkok kiírása
-                def iras_blokkba(adat_szotar, kezdo_sor, cim):
-                    iras_fejlec(ws, kezdo_sor, cim)
                     osszes_termek = sorted(list(set((k[1], k[2]) for k in adat_szotar.keys())))
                     data_start = kezdo_sor + 3
                     
                     for i, (msz, kem) in enumerate(osszes_termek):
                         sor = data_start + i
                         for nap_index in range(5):
-                            kezdo_oszlop = nap_index * 4 + 1
-                            mennyiseg = adat_szotar.get((nap_index, msz, kem), 0)
-                            if mennyiseg > 0:
-                                ws.cell(row=sor, column=kezdo_oszlop, value=msz)
-                                ws.cell(row=sor, column=kezdo_oszlop + 1, value=kem)
-                                ws.cell(row=sor, column=kezdo_oszlop + 2, value=mennyiseg)
+                            c = nap_index * 4 + 1
+                            val = adat_szotar.get((nap_index, msz, kem), 0)
+                            if val > 0:
+                                ws.cell(row=sor, column=c, value=msz)
+                                ws.cell(row=sor, column=c+1, value=kem)
+                                ws.cell(row=sor, column=c+2, value=val)
                     
                     utolso_adat_sor = data_start + len(osszes_termek) - 1
                     osszes_sor = data_start + len(osszes_termek)
-                    ws.cell(row=osszes_sor, column=1, value="ÖSSZESEN").font = Font(bold=True)
+                    
+                    # Összesítő sorok
                     for nap_index in range(5):
-                        oszlop = nap_index * 4 + 3
-                        range_str = f"{ws.cell(row=data_start, column=oszlop).coordinate}:{ws.cell(row=utolso_adat_sor, column=oszlop).coordinate}"
-                        ws.cell(row=osszes_sor, column=oszlop, value=f"=SUM({range_str})")
-                    return osszes_sor + 3
+                        c = nap_index * 4 + 3
+                        r_str = f"{ws.cell(row=data_start, column=c).coordinate}:{ws.cell(row=utolso_adat_sor, column=c).coordinate}"
+                        ws.cell(row=osszes_sor, column=c, value=f"=SUM({r_str})").font = Font(bold=True)
+                    
+                    # Heti összesítő (az S oszlopba, azaz a 19. oszlopba)
+                    ws.cell(row=osszes_sor, column=19, value=f"=SUM(C{osszes_sor},G{osszes_sor},K{osszes_sor},O{osszes_sor},S{osszes_sor})").font = Font(bold=True)
+                    
+                    # Szegélyek A1-től S-ig
+                    for r in range(kezdo_sor, osszes_sor + 1):
+                        for c in range(1, 20):
+                            ws.cell(row=r, column=c).border = thin_border
+                    return osszes_sor + 2
 
-                kovetkezo_sor = iras_blokkba(kiszedesek, 1, "KISZEDÉSEK")
-                iras_blokkba(visszarakasok, kovetkezo_sor, "VISSZARAKÁSOK")
+                # Adatok
+                docs = list(db.collection("naplo").stream())
+                kiszedesek, visszarakasok = {}, {}
+                for doc in docs:
+                    adat = doc.to_dict()
+                    ni = pd.to_datetime(adat['datum']).dayofweek
+                    if 0 <= ni <= 4:
+                        sku = adat['sku'].split('_')
+                        k = (ni, (sku[0]+sku[1]).lower(), sku[2].lower())
+                        if adat['tipus'] == 'kiszedes': kiszedesek[k] = kiszedesek.get(k, 0) + int(adat.get('darabszam',0))
+                        else: visszarakasok[k] = visszarakasok.get(k, 0) + int(adat.get('darabszam',0))
+
+                # Generálás
+                hét_szám = datetime.now().strftime("%V. Hét")
+                kovetkezo_sor = iras_blokkba(kiszedesek, 1, f"{hét_szám} - KISZEDÉSEK")
+                iras_blokkba(visszarakasok, kovetkezo_sor, f"{hét_szám} - VISSZARAKÁSOK")
 
                 output = BytesIO()
                 wb.save(output)
                 st.download_button("📥 Letöltés: Heti Riport", data=output.getvalue(), file_name="Heti_Riport.xlsx")
                 st.success("Sikeres generálás!")
             except Exception as e:
-                st.error(f"Hiba történt: {e}")
-
+                st.error(f"Hiba: {e}")
         # --- KÉSZLET SZERKESZTÉSE ---
         st.subheader("📦 Készlet Szerkesztése")
         adatok = get_firebase_data()
