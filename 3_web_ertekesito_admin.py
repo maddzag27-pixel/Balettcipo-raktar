@@ -76,8 +76,8 @@ def get_matrix(adatok, w):
     
     # Összesítő sor (csak a méret-oszlopokra számolva)
     total_row = matrix.sum(axis=0).to_dict()
-    total_row["Keménység (bal)"] = "ÖSSZESEN"
-    total_row["Keménység (jobb)"] = "ÖSSZESEN"
+    total_row["Keménység "] = "ÖSSZESEN"
+    total_row["Keménység "] = "ÖSSZESEN"
     
     # Sor hozzáadása a df-hez
     final_df = pd.concat([final_df, pd.DataFrame([total_row])], ignore_index=True)
