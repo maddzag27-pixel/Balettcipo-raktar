@@ -47,13 +47,12 @@ def get_matrix(adatok, w):
     
     total_sum = matrix.values.sum()
     final_df = matrix.copy()
-    # Oszlopok beszúrása
     final_df.insert(0, "Keménység", hardnesses)
-    final_df["Keménység_Jobb"] = hardnesses
+    final_df["Keménység "] = hardnesses 
     
     total_row = matrix.sum(axis=0).to_dict()
     total_row["Keménység"] = "ÖSSZESEN"
-    total_row["Keménység_Jobb"] = str(total_sum)
+    total_row["Keménység "] = str(total_sum)
     
     final_df = pd.concat([final_df, pd.DataFrame([total_row])], ignore_index=True)
     return final_df
@@ -101,18 +100,24 @@ elif funkcio == "📊 Értékesítő":
 elif funkcio == "🔐 Admin":
     st.title("🔐 Adminisztráció")
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
-        # --- EXPORTÁLÁS GOMB ---
         st.subheader("📊 Adatkezelés")
-        if st.button("📥 Napi Napló Exportálása (Excel)"):
+        
+        # EXPORT: Egyetlen nagy táblázat
+        if st.button("📥 Teljes napló letöltése (Egy táblázatban)"):
             naplo_docs = db.collection("naplo").stream()
             naplo_data = [doc.to_dict() for doc in naplo_docs]
+            
             if naplo_data:
                 df_naplo = pd.DataFrame(naplo_data)
+                df_naplo['datum'] = pd.to_datetime(df_naplo['datum'])
+                df_naplo = df_naplo.sort_values(by='datum')
+                
                 output = BytesIO()
                 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    df_naplo.to_excel(writer, index=False, sheet_name='Naplo')
+                    df_naplo.to_excel(writer, index=False, sheet_name='Osszesites')
+                
                 st.download_button(
-                    label="Kattints a letöltéshez",
+                    label="Letöltés most",
                     data=output.getvalue(),
                     file_name=f"naplo_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
                     mime="application/vnd.ms-excel"
@@ -138,5 +143,4 @@ elif funkcio == "🔐 Admin":
                         if int(edit.at[k, m]) != adatok.get(f"{m}_{w}_{k}", 0):
                             batch.set(db.collection("keszlet").document(f"{m}_{w}_{k}"), {"mennyiseg": int(edit.at[k, m])})
                 batch.commit()
-                st.rerun()
                 st.rerun()
