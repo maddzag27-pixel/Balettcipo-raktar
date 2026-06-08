@@ -109,12 +109,10 @@ elif funkcio == "🔐 Admin":
                 wb = openpyxl.load_workbook(fajlnev)
                 ws = wb.active
 
-                # Adatok lekérése a Firebase-ből
+# 2. Adatok lekérése a Firebase-ből
                 docs = db.collection("naplo").stream()
                 
-                # Napok oszlopainak megfeleltetése: 
-                # Hétfő (C), Kedd (F), Szerda (I), Csütörtök (L), Péntek (O)
-                # A 3. oszlop a "Darab", a 2. a "Keménység", az 1. a "Méret"
+                # 3. Napok oszlopainak megfeleltetése: Hétfő (C=3), Kedd (F=6), Szerda (I=9), Csütörtök (L=12), Péntek (O=15)
                 nap_oszlop_darab = {0: 3, 1: 6, 2: 9, 3: 12, 4: 15}
 
                 for doc in docs:
@@ -124,21 +122,23 @@ elif funkcio == "🔐 Admin":
                     
                     if nap_index in nap_oszlop_darab:
                         sku_reszek = adat['sku'].split('_') 
-                        # [Méret, Szélesség, Keménység] - A fájlodban Méret és Keménység van
-                        meret, kemenyseg = sku_reszek[0], sku_reszek[2]
+                        # SKU részek: [Méret, Szélesség, Keménység]
+                        meret = str(sku_reszek[0])
+                        kemenyseg = str(sku_reszek[2])
                         darab = int(adat['darabszam'])
                         
-                        # Sor keresése (4-től 30-ig)
-                        for row in range(4, 30):
-                            cell_meret = str(ws.cell(row=row, column=nap_oszlop_darab[nap_index]-2).value)
-                            cell_kemenyseg = str(ws.cell(row=row, column=nap_oszlop_darab[nap_index]-1).value)
+                        # Sor keresése (Sablon 4. sortól kezdődik a minta alapján)
+                        for row in range(4, 50): # Növeltem 50-re a biztonság kedvéért
+                            cell_m = str(ws.cell(row=row, column=nap_oszlop_darab[nap_index]-2).value)
+                            cell_k = str(ws.cell(row=row, column=nap_oszlop_darab[nap_index]-1).value)
                             
-                            if cell_meret == meret and cell_kemenyseg == kemenyseg:
+                            # Itt ellenőrizzük, hogy a cellaértékek egyeznek-e a Firebase adatokkal
+                            if cell_m.strip() == meret and cell_k.strip() == kemenyseg:
                                 cel_oszlop = nap_oszlop_darab[nap_index]
                                 current_val = ws.cell(row=row, column=cel_oszlop).value or 0
                                 ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
-                                break
-
+                                # Ne törjük meg a ciklust (break), mert egy nap többször is lehet kiszedés ugyanabból a típusból
+                
                 output = BytesIO()
                 wb.save(output)
                 st.download_button(
