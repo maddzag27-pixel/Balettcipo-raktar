@@ -7,6 +7,9 @@ import openpyxl
 from io import BytesIO
 from datetime import datetime
 
+# --- JELSZÓ BEÁLLÍTÁSA (Ezt írd át amire szeretnéd!) ---
+ADMIN_JELSZO = "admin123"
+
 # --- 1. OLDAL BEÁLLÍTÁSAI ---
 st.set_page_config(page_title="Balettcipő Raktár", layout="wide")
 
@@ -40,8 +43,12 @@ funkcio = st.sidebar.radio("Válassz felületet:", [
 docs = db.collection("keszlet").stream()
 firebase_adatok = {doc.id: doc.to_dict().get("mennyiseg", 0) for doc in docs}
 
+# ==============================================================================
+# A) RAKTÁRI GOMBOS FELÜLET (Mindenki eléri)
+# ==============================================================================
 if funkcio == "📱 Raktári Kiszedés (Gombos)":
     st.title("📱 Raktári Mozgás Rögzítése")
+    
     col1, col2, col3 = st.columns(3)
     with col1:
         st.subheader("1. Méret")
@@ -80,11 +87,11 @@ if funkcio == "📱 Raktári Kiszedés (Gombos)":
             st.success(f"Sikeresen visszarakva 1 db! Új készlet: {uj_db}")
             st.rerun()
 
-else:
-    if funkcio == "📊 Értékesítő (Csak olvasható)":
-        st.title("📊 Balettcipő Élő Készlet (Olvasó)")
-    else:
-        st.title("🔐 Adminisztrátori Készletkezelés")
+# ==============================================================================
+# B) ÉRTÉKESÍTŐ FELÜLET (Mindenki eléri, csak olvasható)
+# ==============================================================================
+elif funkcio == "📊 Értékesítő (Csak olvasható)":
+    st.title("📊 Balettcipő Élő Készlet (Olvasó)")
 
     def apply_row_styles(row):
         kemenyseg = row.name
@@ -111,7 +118,35 @@ else:
         display_df = formatted_df.copy()
         display_df.loc["ÖSSZ:"] = oszlop_osszegek + [f"🎁 VÉGÖSSZEG: {teljes_vegosszeg}"]
 
-        if funkcio == "🔐 Admin (Szerkeszthető)":
+        styled_df = display_df.style.apply(
+            lambda row: apply_row_styles(row) if row.name != "ÖSSZ:" else ['background-color: #365F91; color: white; font-weight: bold;'] * len(row), axis=1
+        )
+        st.dataframe(styled_df, use_container_width=True, height=390)
+
+# ==============================================================================
+# C) ADMIN FELÜLET (CSAK JELSZÓVAL!)
+# ==============================================================================
+elif funkcio == "🔐 Admin (Szerkeszthető)":
+    st.title("🔐 Adminisztrátori Készletkezelés")
+    
+    # Jelszó bekérő mező az oldalsávban vagy a főoldalon
+    bevitt_jelszo = st.sidebar.text_input("Írd be az Admin jelszót:", type="password")
+    
+    if bevitt_jelszo != ADMIN_JELSZO:
+        st.warning("⚠️ Kérjük, add meg a helyes adminisztrátori jelszót az oldalsávban a hozzáféréshez!")
+    else:
+        st.success("🔓 Hozzáférés megadva!")
+        
+        for w in widths:
+            st.header(f"🛠️ \"{w}\" Szélesség szerkesztése")
+            matrix_df = pd.DataFrame(0, index=hardnesses, columns=sizes)
+            for m in sizes:
+                for k in hardnesses:
+                    sku_id = f"{m}_{w}_{k}"
+                    matrix_df.at[k, m] = firebase_adatok.get(sku_id, 0)
+            
+            matrix_df["Keménység "] = matrix_df.index
+            
             edited_df = st.data_editor(matrix_df, key=f"editor_{w}", use_container_width=True, disabled=["Keménység "])
             if not edited_df.equals(matrix_df):
                 if st.button(f"💾 \"{w}\" mentése", key=f"btn_{w}", type="primary"):
@@ -123,50 +158,46 @@ else:
                             doc_ref = db.collection("keszlet").document(sku_id)
                             batch.update(doc_ref, {"mennyiseg": uj_ertek})
                     batch.commit()
-                    st.success("Mentve!")
+                    st.success("Készlet sikeresen frissítve a felhőben!")
                     st.rerun()
-        else:
-            styled_df = display_df.style.apply(
-                lambda row: apply_row_styles(row) if row.name != "ÖSSZ:" else ['background-color: #365F91; color: white; font-weight: bold;'] * len(row), axis=1
-            )
-            st.dataframe(styled_df, use_container_width=True, height=390)
 
-    st.write("---")
-    st.subheader("📊 Gyártástervezési Napló Mentése")
-    
-    def excel_keszites_memoriaban():
-        ma_szoveg = datetime.now().strftime("%Y-%m-%d")
-        wb = openpyxl.load_workbook("kiszedes_sablon.xlsx")
-        ws = wb.active
-        naplo_ref = db.collection("naplo").where("datum", "==", ma_szoveg).stream()
+        # --- EXCEL EXPORT (Csak az admin látja!) ---
+        st.write("---")
+        st.subheader("📊 Gyártástervezési Napló Mentése")
         
-        adatok_kiszedes, adatok_visszarakas = {}, {}
-        for doc in naplo_ref:
-            data = doc.to_dict()
-            sku, tipus, db_szam = data.get("sku"), data.get("tipus"), data.get("darabszam", 1)
-            if tipus == "kiszedes": adatok_kiszedes[sku] = adatok_kiszedes.get(sku, 0) + db_szam
-            elif tipus == "visszarakas": adatok_visszarakas[sku] = adatok_visszarakas.get(sku, 0) + db_szam
+        def excel_keszites_memoriaban():
+            ma_szoveg = datetime.now().strftime("%Y-%m-%d")
+            wb = openpyxl.load_workbook("kiszedes_sablon.xlsx")
+            ws = wb.active
+            naplo_ref = db.collection("naplo").where("datum", "==", ma_szoveg).stream()
+            
+            adatok_kiszedes, adatok_visszarakas = {}, {}
+            for doc in naplo_ref:
+                data = doc.to_dict()
+                sku, tipus, db_szam = data.get("sku"), data.get("tipus"), data.get("darabszam", 1)
+                if tipus == "kiszedes": adatok_kiszedes[sku] = adatok_kiszedes.get(sku, 0) + db_szam
+                elif tipus == "visszarakas": adatok_visszarakas[sku] = adatok_visszarakas.get(sku, 0) + db_szam
 
-        def cella_kitoltes(sku_adatok, sor_eltolas):
-            for sku, darab in sku_adatok.items():
-                meret, szelesseg, kemenyseg = sku.split("_")
-                try:
-                    oszlop_idx = 2 + sizes.index(meret)
-                    szelesseg_alap_sorok = {"M": 5, "X": 20, "XX": 35, "XXX": 50}
-                    vegso_sor = szelesseg_alap_sorok[szelesseg] + hardnesses.index(kemenyseg) + sor_eltolas
-                    ws.cell(row=vegso_sor, column=oszlop_idx, value=darab)
-                except: continue
+            def cella_kitoltes(sku_adatok, sor_eltolas):
+                for sku, darab in sku_adatok.items():
+                    meret, szelesseg, kemenyseg = sku.split("_")
+                    try:
+                        oszlop_idx = 2 + sizes.index(meret)
+                        szelesseg_alap_sorok = {"M": 5, "X": 20, "XX": 35, "XXX": 50}
+                        vegso_sor = szelesseg_alap_sorok[szelesseg] + hardnesses.index(kemenyseg) + sor_eltolas
+                        ws.cell(row=vegso_sor, column=oszlop_idx, value=darab)
+                    except: continue
 
-        cella_kitoltes(adatok_kiszedes, sor_eltolas=0)
-        cella_kitoltes(adatok_visszarakas, sor_eltolas=60)
-        
-        output = BytesIO()
-        wb.save(output)
-        output.seek(0)
-        return output.getvalue()
+            cella_kitoltes(adatok_kiszedes, sor_eltolas=0)
+            cella_kitoltes(adatok_visszarakas, sor_eltolas=60)
+            
+            output = BytesIO()
+            wb.save(output)
+            output.seek(0)
+            return output.getvalue()
 
-    try:
-        excel_adat = excel_keszites_memoriaban()
-        st.download_button(label="📥 Aznapi Gyártásterv Excel letöltése", data=excel_adat, file_name=f"Gyartasterv_{datetime.now().strftime('%Y-%m-%d')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary")
-    except:
-        st.error("⚠️ A 'kiszedes_sablon.xlsx' hiányzik!")
+        try:
+            excel_adat = excel_keszites_memoriaban()
+            st.download_button(label="📥 Aznapi Gyártásterv Excel letöltése", data=excel_adat, file_name=f"Gyartasterv_{datetime.now().strftime('%Y-%m-%d')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary")
+        except:
+            st.error("⚠️ A 'kiszedes_sablon.xlsx' hiányzik!")
