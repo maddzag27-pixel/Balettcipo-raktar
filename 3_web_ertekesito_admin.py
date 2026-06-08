@@ -13,26 +13,16 @@ ADMIN_JELSZO = "admin123"
 # --- 1. OLDAL BEÁLLÍTÁSAI ---
 st.set_page_config(page_title="Balettcipő Raktár", layout="wide")
 
-# --- 2. FIREBASE INDÍTÁSA (GARANTÁLTAN EGYSZERI) ---
+# --- FIREBASE INDÍTÁSA ---
 if not firebase_admin._apps:
     secrets = st.secrets["firestore"]
-    cred_dict = {
-        "type": secrets["type"],
-        "project_id": secrets["project_id"],
-        "private_key_id": secrets["private_key_id"],
-        "private_key": secrets["private_key"].replace("\\n", "\n"),
-        "client_email": secrets["client_email"],
-        "client_id": secrets["client_id"],
-        "auth_uri": secrets["auth_uri"],
-        "token_uri": secrets["token_uri"],
-        "auth_provider_x509_cert_url": secrets["auth_provider_x509_cert_url"],
-        "client_x509_cert_url": secrets["client_x509_cert_url"]
-    }
+    cred_dict = dict(secrets) # A Secrets automatikusan szótárként adja vissza
+    cred_dict["private_key"] = cred_dict["private_key"].replace("\\n", "\n")
+    
     cred = credentials.Certificate(cred_dict)
     firebase_admin.initialize_app(cred)
 
 db = firestore.client()
-
 # --- 3. FIX ADATOK ---
 widths = ["M", "W", "XW", "XXW"]
 sizes = [str(i) for i in range(5, 15)] 
