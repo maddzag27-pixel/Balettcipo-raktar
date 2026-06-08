@@ -46,12 +46,13 @@ def get_matrix(adatok, w):
     
     total_sum = matrix.values.sum()
     final_df = matrix.copy()
+    # Oszlopok beszúrása
     final_df.insert(0, "Keménység", hardnesses)
-    final_df["Keménység "] = hardnesses 
+    final_df["Keménység_Jobb"] = hardnesses
     
     total_row = matrix.sum(axis=0).to_dict()
     total_row["Keménység"] = "ÖSSZESEN"
-    total_row["Keménység "] = str(total_sum)
+    total_row["Keménység_Jobb"] = str(total_sum)
     
     final_df = pd.concat([final_df, pd.DataFrame([total_row])], ignore_index=True)
     return final_df
@@ -63,10 +64,10 @@ if funkcio == "📱 Raktári Kiszedés":
     st.title("📱 Raktári Mozgás")
     adatok = get_firebase_data()
     c1, c2, c3 = st.columns(3)
-    m = c1.radio("Méret:", sizes)
-    w = c2.radio("Szélesség:", widths)
-    k = c3.radio("Keménység:", hardnesses)
-    sku = f"{m}_{w}_{k}"
+    meret = c1.radio("Méret:", sizes)
+    szelesseg = c2.radio("Szélesség:", widths)
+    kemenyseg = c3.radio("Keménység:", hardnesses)
+    sku = f"{meret}_{szelesseg}_{kemenyseg}"
     db_val = adatok.get(sku, 0)
     
     st.info(f"Kiválasztva: **{sku}** | Aktuális készlet: **{db_val}**")
@@ -105,4 +106,13 @@ elif funkcio == "🔐 Admin":
             m_df = pd.DataFrame(0, index=hardnesses, columns=sizes)
             for m in sizes:
                 for k in hardnesses:
-                    m_
+                    m_df.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
+            edit = st.data_editor(m_df, use_container_width=True, key=f"ed_{w}")
+            if st.button(f"💾 Mentés: {w}", key=f"btn_{w}"):
+                batch = db.batch()
+                for m in sizes:
+                    for k in hardnesses:
+                        if int(edit.at[k, m]) != adatok.get(f"{m}_{w}_{k}", 0):
+                            batch.set(db.collection("keszlet").document(f"{m}_{w}_{k}"), {"mennyiseg": int(edit.at[k, m])})
+                batch.commit()
+                st.rerun()
