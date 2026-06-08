@@ -97,51 +97,35 @@ elif funkcio == "📊 Értékesítő":
             return [f'background-color: {kemenyseg_szinek.get(k, "#FFFFFF")}'] * len(row)
         st.dataframe(df.style.apply(szinezo, axis=1).hide(axis="index"), use_container_width=True)
 
-# --- EXPORTÁLÁS: Fix sablon formátumra (Méret - Keménység - Darab oszlopokkal) ---
+elif funkcio == "🔐 Admin":
+    st.title("🔐 Adminisztráció")
+    if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
+        # --- EXPORTÁLÁS ---
         st.subheader("📊 Adatkezelés")
         if st.button("📥 Heti sablon letöltése (Pontos sablon szerinti)"):
             naplo_docs = db.collection("naplo").stream()
             data = [doc.to_dict() for doc in naplo_docs]
-            
             if data:
                 df = pd.DataFrame(data)
                 df['datum'] = pd.to_datetime(df['datum'])
-                
-                # Oszlopok: Hétfő (Méret, Keménység, Darab), Kedd (Méret, Keménység, Darab)...
                 nap_nevek = {0: 'HÉTFŐ', 1: 'KEDD', 2: 'SZERDA', 3: 'CSÜTÖRTÖK', 4: 'PÉNTEK'}
-                
-                # Létrehozunk egy alaptáblát az összes lehetséges SKU-val
                 master_df = pd.DataFrame([sku.split('_') for sku in [f"{m}_M_{k}" for m in sizes for k in hardnesses]], 
                                          columns=['Méret', 'Szélesség', 'Keménység'])
-                
                 output = BytesIO()
                 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                     final_report = master_df.copy()
-                    
                     for i in range(5):
-                        # Szűrés az adott napra
                         nap_df = df[df['datum'].dt.dayofweek == i].copy()
-                        # SKU szétszedése Méret/Szélesség/Keménység oszlopokra
                         nap_df[['Méret', 'Szélesség', 'Keménység']] = nap_df['sku'].str.split('_', expand=True)
-                        
-                        # Összegzés
                         daily_sum = nap_df.groupby(['Méret', 'Keménység'])['darabszam'].sum().reset_index()
                         daily_sum.rename(columns={'darabszam': 'Darab'}, inplace=True)
-                        
-                        # Összefűzés a master listával
                         final_report = final_report.merge(daily_sum, on=['Méret', 'Keménység'], how='left').fillna(0)
                         final_report.rename(columns={'Darab': f'{nap_nevek[i]} - Darab'}, inplace=True)
-                    
                     final_report.to_excel(writer, index=False, sheet_name='Heti_Sablon')
-                
-                st.download_button(
-                    label="📥 Heti sablon letöltése",
-                    data=output.getvalue(),
-                    file_name=f"Heti_Sablon_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
-                    mime="application/vnd.ms-excel"
-                )
+                st.download_button("📥 Heti sablon letöltése", data=output.getvalue(), file_name="Heti_Kiszedes.xlsx", mime="application/vnd.ms-excel")
             else:
                 st.warning("A napló üres!")
+
         # --- KÉSZLET SZERKESZTÉSE ---
         st.subheader("📦 Készlet Szerkesztése")
         adatok = get_firebase_data()
@@ -151,7 +135,6 @@ elif funkcio == "📊 Értékesítő":
             for m in sizes:
                 for k in hardnesses:
                     m_df.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
-            
             edit = st.data_editor(m_df, use_container_width=True, key=f"ed_{w}")
             if st.button(f"💾 Mentés: {w}", key=f"btn_{w}"):
                 batch = db.batch()
