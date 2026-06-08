@@ -125,11 +125,19 @@ elif funkcio == "🔐 Admin":
                         
                         kezdo_oszlop = nap_blokk_kezdete[nap_index]
                         
+# A ciklus belsejében, közvetlenül a row loop alatt:
                         for row in range(4, 31): 
                             val1 = str(ws.cell(row=row, column=kezdo_oszlop).value or "").strip().lower()
                             val2 = str(ws.cell(row=row, column=kezdo_oszlop + 1).value or "").strip().lower()
                             
+                            # ITT A TESZT:
+                            # Ha csak az első sort vizsgáljuk, láthatjuk, mit lát a gép:
+                            if row == 4:
+                                st.write(f"Sor 4: Keresett: '{meret_szel}' / '{kemenyseg}'")
+                                st.write(f"Sor 4: Excelben van: '{val1}' / '{val2}'")
+                            
                             if val1 == meret_szel and val2 == kemenyseg:
+                                # ... (beírás)
                                 cel_oszlop = kezdo_oszlop + 2
                                 current_val = ws.cell(row=row, column=cel_oszlop).value or 0
                                 ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
