@@ -102,29 +102,44 @@ elif funkcio == "🔐 Admin":
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
         st.subheader("📊 Adatkezelés")
         
-        # EXPORT: Egyetlen nagy táblázat
-        if st.button("📥 Teljes napló letöltése (Egy táblázatban)"):
+       # --- EXPORTÁLÁS: Fix heti sablon formátumban ---
+        st.subheader("📊 Adatkezelés")
+        if st.button("📥 Heti sablon letöltése (Oszlopos)"):
             naplo_docs = db.collection("naplo").stream()
             naplo_data = [doc.to_dict() for doc in naplo_docs]
             
             if naplo_data:
-                df_naplo = pd.DataFrame(naplo_data)
-                df_naplo['datum'] = pd.to_datetime(df_naplo['datum'])
-                df_naplo = df_naplo.sort_values(by='datum')
+                df = pd.DataFrame(naplo_data)
+                df['datum'] = pd.to_datetime(df['datum'])
                 
+                # Segédoszlop: Hét napja (0=Hétfő, 4=Péntek)
+                df['nap_index'] = df['datum'].dt.dayofweek
+                
+                # Pivot tábla: SKU (Méret_Szélesség_Keménység) soronként, napok oszloponként
+                # A 'darabszam' összegzése napokra
+                pivot_df = df.pivot_table(index='sku', columns='nap_index', values='darabszam', aggfunc='sum', fill_value=0)
+                
+                # Oszlopnevek beállítása
+                nap_nevek = {0: 'HÉTFŐ', 1: 'KEDD', 2: 'SZERDA', 3: 'CSÜTÖRTÖK', 4: 'PÉNTEK'}
+                pivot_df.rename(columns=nap_nevek, inplace=True)
+                
+                # Excel generálás
                 output = BytesIO()
                 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    df_naplo.to_excel(writer, index=False, sheet_name='Osszesites')
+                    pivot_df.to_excel(writer, sheet_name='Heti_Kisz')
+                    
+                    # Opcionális: Formázás (szélesebb oszlopok stb.)
+                    worksheet = writer.sheets['Heti_Kisz']
+                    worksheet.set_column('A:F', 15)
                 
                 st.download_button(
-                    label="Letöltés most",
+                    label="📥 Heti sablon letöltése",
                     data=output.getvalue(),
-                    file_name=f"naplo_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+                    file_name=f"Heti_Kiszedes_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
                     mime="application/vnd.ms-excel"
                 )
             else:
                 st.warning("A napló üres!")
-
         # --- KÉSZLET SZERKESZTÉSE ---
         st.subheader("📦 Készlet Szerkesztése")
         adatok = get_firebase_data()
