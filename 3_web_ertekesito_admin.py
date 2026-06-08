@@ -143,41 +143,51 @@ elif funkcio == "📊 Értékesítő (Csak olvasható)":
         # Megjelenítés: a stílus objektumot adjuk át a st.dataframe-nek
         st.dataframe(styled_df, use_container_width=True)
 # ==============================================================================
-# C) ADMIN FELÜLET (Javítva)
+# C) ADMIN FELÜLET (Teljesen javított kód)
 # ==============================================================================
 elif funkcio == "🔐 Admin (Szerkeszthető)":
     st.title("🔐 Adminisztrátori Készletkezelés")
     
+    # Jelszó védelem
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
+        # Adatok lekérése a Firebase-ből
         adatok = get_firebase_data()
         
         for w in widths:
             st.subheader(f"🛠️ \"{w}\" szélesség szerkesztése")
             
-            # --- ITT A JAVÍTÁS: Létrehozunk egy tiszta mátrixot összesítés nélkül ---
+            # Mátrix felépítése az adott szélességhez (összesítés nélkül a szerkesztéshez)
             matrix_df = pd.DataFrame(0, index=hardnesses, columns=sizes)
             for m in sizes:
                 for k in hardnesses:
                     matrix_df.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
             
-            # Szerkeszthető tábla (most már nem kell .drop, mert ez tiszta)
-            edited_df = st.data_editor(matrix_df, use_container_width=True)
+            # Szerkeszthető tábla egyedi kulccsal (editor_ + szélesség)
+            edited_df = st.data_editor(
+                matrix_df, 
+                use_container_width=True,
+                key=f"editor_{w}"
+            )
             
+            # Mentés gomb egyedi kulccsal
             if st.button(f"💾 Mentés: {w}", key=f"mentes_{w}"):
                 batch = db.batch()
-                valtozas = False
+                valtozas_tortent = False
                 
                 for m in sizes:
                     for k in hardnesses:
                         uj_ertek = int(edited_df.at[k, m])
                         regi_ertek = adatok.get(f"{m}_{w}_{k}", 0)
                         
+                        # Csak azt frissítjük, ami változott
                         if uj_ertek != regi_ertek:
                             doc_ref = db.collection("keszlet").document(f"{m}_{w}_{k}")
                             batch.set(doc_ref, {"mennyiseg": uj_ertek})
-                            valtozas = True
+                            valtozas_tortent = True
                 
-                if valtozas:
+                if valtozas_tortent:
                     batch.commit()
-                    st.success(f"✅ {w} frissítve!")
-                    st.rerun()
+                    st.success(f"✅ \"{w}\" szélesség sikeresen frissítve!")
+                    st.rerun() # Frissítjük az oldalt a változások megjelenítéséhez
+                else:
+                    st.info("Nincs változás.")
