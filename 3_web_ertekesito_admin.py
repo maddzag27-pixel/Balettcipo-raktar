@@ -134,22 +134,20 @@ elif funkcio == "🔐 Admin":
                         
                         # A 4. sortól a 30-ig keressük a sorokat
                 for row in range(4, 31): 
-                    # Excel 1. oszlop (Méret, pl: 8W)
-                    val1 = ws.cell(row=row, column=kezdo_oszlop).value
-                    # Excel 2. oszlop (Keménység, pl: XST)
-                    val2 = ws.cell(row=row, column=kezdo_oszlop + 1).value
+                    # Excel értékek
+                    val1 = str(ws.cell(row=row, column=kezdo_oszlop).value or "").strip().lower()
+                    val2 = str(ws.cell(row=row, column=kezdo_oszlop + 1).value or "").strip().lower()
                     
-                    # Firebase adatok összevonása a kereséshez:
-                    # sku_reszek[0] = 8, sku_reszek[1] = W -> így lesz "8w"
-                    meret_es_szelesseg_db = (str(sku_reszek[0]) + str(sku_reszek[1])).strip().lower()
-                    kemenyseg_db = str(sku_reszek[2]).strip().lower()
+                    # Firebase SKU átalakítása kereshető formára:
+                    # '8_W_XST' -> '8w' és 'xst'
+                    sku_reszek = adat['sku'].split('_') 
+                    firebase_meret_szel = (str(sku_reszek[0]) + str(sku_reszek[1])).lower()
+                    firebase_kemenyseg = str(sku_reszek[2]).lower()
                     
-                    # Excel cellák tisztítása
-                    cell_m = str(val1).replace('.0', '').strip().lower()
-                    cell_k = str(val2).strip().lower()
-                    
-                    # Egyezés vizsgálata
-                    if cell_m == meret_es_szelesseg_db and cell_k == kemenyseg_db:
+                    # Logikai egyezés:
+                    # Ha az Excel 1. oszlop (pl "8w") == Firebase '8w'
+                    # ÉS az Excel 2. oszlop (pl "xst") == Firebase 'xst'
+                    if val1 == firebase_meret_szel and val2 == firebase_kemenyseg:
                         cel_oszlop = kezdo_oszlop + 2
                         current_val = ws.cell(row=row, column=cel_oszlop).value or 0
                         ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
