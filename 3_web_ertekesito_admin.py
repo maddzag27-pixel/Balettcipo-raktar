@@ -43,15 +43,12 @@ funkcio = st.sidebar.radio("Válassz felületet:", [
     "🔐 Admin (Szerkeszthető)"
 ])
 
-# --- ADATOK LEKÉRÉSE ---
 @st.cache_data(ttl=60)
 def get_firebase_data():
     try:
-        # Csak a legszükségesebb adatokat kérjük le
-        adatok = {}
-        docs = db.collection("keszlet").get() # A stream helyett get-et használunk, de limitálva
-        for doc in docs:
-            adatok[doc.id] = int(doc.to_dict().get("mennyiseg", 0))
+        # Rövid timeout, hogy ne fagyjon ki a szerver
+        docs = db.collection("keszlet").limit(500).get()
+        adatok = {doc.id: int(doc.to_dict().get("mennyiseg", 0)) for doc in docs}
         return adatok
     except Exception:
         return {}
