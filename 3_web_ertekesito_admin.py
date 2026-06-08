@@ -138,6 +138,14 @@ elif funkcio == "🔐 Admin":
                 nap_blokk_kezdete = {0: 1, 1: 4, 2: 7, 3: 10, 4: 13}
 
                 for doc in docs:
+                    docs = list(db.collection("naplo").stream())
+                st.write(f"Talált dokumentumok száma a naplóban: {len(docs)}")
+                
+                for doc in docs:
+                    adat = doc.to_dict()
+                    st.write(f"Feldolgozás alatt: {adat}") # Ez kiírja az összes adatot a képernyőre
+                    
+                    # ... a többi kód ...
                     adat = doc.to_dict()
                     datum = pd.to_datetime(adat['datum'])
                     nap_index = datum.dayofweek
