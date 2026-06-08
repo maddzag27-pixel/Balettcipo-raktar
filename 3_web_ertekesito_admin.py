@@ -115,9 +115,7 @@ elif funkcio == "🔐 Admin":
                 # 3. Napok oszlopainak megfeleltetése: Hétfő (C=3), Kedd (F=6), Szerda (I=9), Csütörtök (L=12), Péntek (O=15)
                 nap_oszlop_darab = {0: 3, 1: 6, 2: 9, 3: 12, 4: 15}
 
-# 3. Napok oszlopainak megfeleltetése:
-                # A napokhoz tartozó [Méret, Keménység, Darab] blokkok kezdete
-                # Hétfő=1, Kedd=4, Szerda=7, Csütörtök=10, Péntek=13
+# 3. Napok oszlopainak megfeleltetése
                 nap_blokk_kezdete = {0: 1, 1: 4, 2: 7, 3: 10, 4: 13}
 
                 for doc in docs:
@@ -127,24 +125,35 @@ elif funkcio == "🔐 Admin":
                     
                     if 0 <= nap_index <= 4:
                         sku_reszek = adat['sku'].split('_') 
-                        meret_db = str(sku_reszek[0]).strip()
-                        kemenyseg_db = str(sku_reszek[2]).strip()
+                        meret_db = str(sku_reszek[0]).strip().lower()
+                        kemenyseg_db = str(sku_reszek[2]).strip().lower()
                         darab = int(adat.get('darabszam', 0))
                         
                         kezdo_oszlop = nap_blokk_kezdete[nap_index]
+                        talalt = False
                         
-                        # Sor keresése (A 4. sortól a 30-ig)
+                        # Sor keresése a 4. sortól a 30-ig
                         for row in range(4, 31): 
-                            # Az adott nap blokkjának 1. és 2. oszlopát nézzük
-                            cell_m = str(ws.cell(row=row, column=kezdo_oszlop).value or "").strip()
-                            cell_k = str(ws.cell(row=row, column=kezdo_oszlop + 1).value or "").strip()
+                            # Excel értékeket is kisbetűssé alakítjuk az összehasonlításhoz
+                            cell_m_raw = ws.cell(row=row, column=kezdo_oszlop).value
+                            cell_k_raw = ws.cell(row=row, column=kezdo_oszlop + 1).value
                             
-                            # Ha egyezik, írjuk a 3. oszlopba (ami a kezdo_oszlop + 2)
+                            cell_m = str(cell_m_raw).strip().lower()
+                            cell_k = str(cell_k_raw).strip().lower()
+                            
                             if cell_m == meret_db and cell_k == kemenyseg_db:
                                 cel_oszlop = kezdo_oszlop + 2
                                 current_val = ws.cell(row=row, column=cel_oszlop).value or 0
-                                ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
+                                try:
+                                    ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
+                                except:
+                                    ws.cell(row=row, column=cel_oszlop).value = darab
+                                talalt = True
                                 break
+                        
+                        # Ha nem talált egyezést, írja ki, mit keresett
+                        if not talalt:
+                            st.warning(f"Nem találom: {meret_db} és {kemenyseg_db}")
                 output = BytesIO()
                 wb.save(output)
                 st.download_button(
