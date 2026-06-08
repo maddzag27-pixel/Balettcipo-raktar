@@ -104,56 +104,50 @@ elif funkcio == "🔐 Admin":
         st.subheader("📊 Adatkezelés")
         if st.button("📥 Heti sablon kitöltése adatokkal"):
             try:
-                fajlnev = "kiszedes_sablon.xlsx" 
-                wb = openpyxl.load_workbook(fajlnev)
+                # Új munkafüzet létrehozása (a sablon helyett)
+                wb = openpyxl.Workbook()
                 ws = wb.active
                 
-                # ADATOK LEKÉRÉSE
+                # Fejlécek
+                napok = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek"]
+                for i, nap in enumerate(napok):
+                    ws.cell(row=2, column=i*4 + 1, value=nap)
+                    ws.cell(row=3, column=i*4 + 1, value="Méret")
+                    ws.cell(row=3, column=i*4 + 2, value="Keménység")
+                    ws.cell(row=3, column=i*4 + 3, value="Darab")
+
                 docs = list(db.collection("naplo").stream())
                 
-                # A4 = 1. oszlop (Hétfő), 4. oszlop (Kedd), 7. oszlop (Szerda), 10. oszlop (Csütörtök), 13. oszlop (Péntek)
-                # Ha a napok egymás mellett vannak 3-as blokkokban:
-                nap_blokk_kezdete = {0: 1, 1: 4, 2: 7, 3: 10, 4: 13}
+                # Adatok összesítése napokra és SKU-ra
+                adatok_tabla = {} # (nap_index, meret_szel, kemenyseg) -> darab
 
                 for doc in docs:
                     adat = doc.to_dict()
                     datum = pd.to_datetime(adat['datum'])
                     nap_index = datum.dayofweek
-                    
                     if 0 <= nap_index <= 4:
-                        sku_reszek = adat['sku'].split('_') 
-                        meret_szel = (str(sku_reszek[0]) + str(sku_reszek[1])).lower()
-                        kemenyseg = str(sku_reszek[2]).lower()
-                        darab = int(adat.get('darabszam', 0))
-                        
-                        kezdo_oszlop = nap_blokk_kezdete[nap_index]
-                        
-                        # Sor keresése a 4. sortól
-                        for row in range(4, 50): 
-                            raw_val1 = ws.cell(row=row, column=kezdo_oszlop).value
-                            raw_val2 = ws.cell(row=row, column=kezdo_oszlop + 1).value
-                            
-                            # KÍRÁS A KONZOLRA/APPRA, HOGY LÁSSUK MIT LÁT A GÉP
-                            st.write(f"Sor {row}: Olvasva: '{raw_val1}' és '{raw_val2}'")
-                            
-                            val1 = str(raw_val1 or "").strip().lower()
-                            val2 = str(raw_val2 or "").strip().lower()
-                            
-                            if val1 == meret_szel and val2 == kemenyseg:
-                                cel_oszlop = kezdo_oszlop + 2 # Darabszám oszlop
-                                current_val = ws.cell(row=row, column=cel_oszlop).value or 0
-                                # Ellenőrizzük, hogy szám-e az érték
-                                try:
-                                    ws.cell(row=row, column=cel_oszlop).value = int(current_val) + darab
-                                except:
-                                    ws.cell(row=row, column=cel_oszlop).value = darab
-                                break
+                        sku_reszek = adat['sku'].split('_')
+                        msz = (str(sku_reszek[0]) + str(sku_reszek[1])).lower()
+                        kem = str(sku_reszek[2]).lower()
+                        db_szam = int(adat.get('darabszam', 0))
+                        kulcs = (nap_index, msz, kem)
+                        adatok_tabla[kulcs] = adatok_tabla.get(kulcs, 0) + db_szam
 
-                # MENTÉS ÉS LETÖLTÉS
+                # Beírás a táblázatba
+                for (nap_index, msz, kem), mennyiseg in adatok_tabla.items():
+                    # Keresünk egy szabad sort, vagy újat nyitunk
+                    kezdo_oszlop = nap_index * 4 + 1
+                    # Egyszerűen írjuk ki sorban (ezt finomíthatod, ha egyeztetni kell a sorokat)
+                    # Itt most minden SKU új sorba kerül
+                    sor = 4 + len([k for k in adatok_tabla.keys() if k[0] == nap_index]) 
+                    ws.cell(row=sor, column=kezdo_oszlop, value=msz)
+                    ws.cell(row=sor, column=kezdo_oszlop + 1, value=kem)
+                    ws.cell(row=sor, column=kezdo_oszlop + 2, value=mennyiseg)
+
                 output = BytesIO()
                 wb.save(output)
-                st.download_button("📥 Letöltés kitöltött sablon", data=output.getvalue(), file_name="Kitoltott_kiszedes.xlsx")
-                st.success("Sikeres kitöltés!")
+                st.download_button("📥 Letöltés generált fájl", data=output.getvalue(), file_name="Generalt_kiszedes.xlsx")
+                st.success("Sikeres generálás!")
             except Exception as e:
                 st.error(f"Hiba történt: {e}")
         # --- KÉSZLET SZERKESZTÉSE ---
