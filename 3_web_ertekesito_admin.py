@@ -157,14 +157,17 @@ elif funkcio == "🔐 Admin":
                     osszes_sor = data_start + len(osszes_termek)
                     
                     # Napi összesítők (Hétfőtől Péntekig - 5 nap)
+                    # 1. Napi összesítők (Minden napnak a saját oszlopába)
                     for nap_index in range(5):
-                        c = nap_index * 4 + 3 # Darab oszlop
-                        # Ellenőrizzük, hogy van-e adat (ha üres az adatblokk, ne írjon hibát)
-                        if utolso_adat_sor >= data_start:
-                            r_str = f"{ws.cell(row=data_start, column=c).coordinate}:{ws.cell(row=utolso_adat_sor, column=c).coordinate}"
-                            ws.cell(row=osszes_sor, column=c, value=f"=SUM({r_str})").font = Font(bold=True)
-                        else:
-                            ws.cell(row=osszes_sor, column=c, value=0).font = Font(bold=True)
+                        c = nap_index * 4 + 3 # A darabszám oszlopa (3, 7, 11, 15, 19)
+                        # Ide csak az adott nap tartománya kerül, saját magát nem tartalmazza
+                        r_str = f"{ws.cell(row=data_start, column=c).coordinate}:{ws.cell(row=utolso_adat_sor, column=c).coordinate}"
+                        ws.cell(row=osszes_sor, column=c, value=f"=SUM({r_str})").font = Font(bold=True)
+                    
+                    # 2. Heti összesítő (Külön oszlopba, az S oszloptól jobbra, a T-be)
+                    ws.cell(row=osszes_sor, column=20, value="HETI ÖSSZESEN:").font = Font(bold=True)
+                    # A heti összesítő a napok összesítőit adja össze (C, G, K, O, S oszlopok a 12. sorban)
+                    ws.cell(row=osszes_sor, column=21, value=f"=SUM(C{osszes_sor},G{osszes_sor},K{osszes_sor},O{osszes_sor},S{osszes_sor})").font = Font(bold=True)
                     
                     # Heti összesítő (S oszlop = 19. oszlop)
                     # Képlet: C, G, K, O, S oszlopok összege az összesítő sorban
