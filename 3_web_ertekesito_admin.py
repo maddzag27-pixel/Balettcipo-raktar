@@ -159,7 +159,7 @@ elif funkcio == "📊 Értékesítő":
         
         # A stílusozott DataFrame megjelenítése (NEM HTML-ként!):
         st.dataframe(
-            styled_df, 
+            df.style.apply(szinezo, axis=1).hide(axis="index"),
             use_container_width=True
         )
         
