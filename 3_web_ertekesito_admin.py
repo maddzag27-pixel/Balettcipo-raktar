@@ -108,13 +108,11 @@ elif funkcio == "📊 Értékesítő":
         st.table([["8W XFR", "1 pár"], ["8W REG", "2 pár"]])
         
     with col2:
-        st.success("### U-DV (1. rész)")
-        st.table([["8M SFT", "8 pár"], ["8M STR", "1 pár"], ["9M STR", "3 pár"], ["9W STR", "3 pár"]])
+        st.success("### U-DV")
+        st.table([["8M SFT", "8 pár"], ["8M STR", "1 pár"], ["9M STR", "3 pár"], ["9W STR", "3 pár"],["8W XST", "1 pár"], ["11XXW XST", "1 pár"], ["11W FLX", "1 pár"], ["11W STR", "1 pár"]])
         
     with col3:
-        st.success("### U-DV (2. rész) & V-DV")
-        st.table([["8W XST", "1 pár"], ["11XXW XST", "1 pár"], ["11W FLX", "1 pár"], ["11W STR", "1 pár"]])
-        st.write("---")
+        st.success("### V-DV")
         st.table([["8W 1/2 XTR", "1 pár"], ["9XW 1/2 XTR", "2 pár"], ["10XW 1/2 XTR", "1 pár"], ["9XXW 2/3 REG", "1 pár"], ["9W REG H-CR", "1 pár"]])
     adatok = get_firebase_data()
     for w in widths:
