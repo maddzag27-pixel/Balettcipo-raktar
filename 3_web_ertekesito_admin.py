@@ -96,44 +96,26 @@ if funkcio == "📱 Raktári Kiszedés":
 
 elif funkcio == "📊 Értékesítő":
     st.title("📊 Értékesítői Nézet")
-    st.subheader("⚠️ SPECIÁLIS KÉSZLET")
+    st.subheader("⚠️ ÉRTÉKESÍTHETŐ SPECIÁLIS KÉSZLET")
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.write("**V-LV:**")
-        st.table([
-            ["7W FLX", "5 pár"],
-            ["6XXW REG", "1 pár"],
-            ["8XW XTR", "1 pár"],
-            ["11XW SUP", "1 pár"]
-        ])
-        st.write("**U-LV:**")
-        st.table([
-            ["8W XFR", "1 pár"],
-            ["8W REG", "2 pár"]
-        ])
+        st.info("### V-LV")
+        st.table([["7W FLX", "5 pár"], ["6XXW REG", "1 pár"], ["8XW XTR", "1 pár"], ["11XW SUP", "1 pár"]])
+        
+        st.info("### U-LV")
+        st.table([["8W XFR", "1 pár"], ["8W REG", "2 pár"]])
         
     with col2:
-        st.write("**U-DV:**")
-        st.table([
-            ["8M SFT", "8 pár"],
-            ["8M STR", "1 pár"],
-            ["9M STR", "3 pár"],
-            ["9W STR", "3 pár"],
-            ["8W XST", "1 pár"],
-            ["11XXW XST", "1 pár"],
-            ["11W FLX", "1 pár"],
-            ["11W STR", "1 pár"]
-        ])
-        st.write("**V-DV:**")
-        st.table([
-            ["8W 1/2 XTR", "1 pár"],
-            ["9XW 1/2 XTR", "2 pár"],
-            ["10XW 1/2 XTR", "1 pár"],
-            ["9XXW 2/3 REG", "1 pár"],
-            ["9W REG H-CR", "1 pár"]
-        ])
+        st.success("### U-DV (1. rész)")
+        st.table([["8M SFT", "8 pár"], ["8M STR", "1 pár"], ["9M STR", "3 pár"], ["9W STR", "3 pár"]])
+        
+    with col3:
+        st.success("### U-DV (2. rész) & V-DV")
+        st.table([["8W XST", "1 pár"], ["11XXW XST", "1 pár"], ["11W FLX", "1 pár"], ["11W STR", "1 pár"]])
+        st.write("---")
+        st.table([["8W 1/2 XTR", "1 pár"], ["9XW 1/2 XTR", "2 pár"], ["10XW 1/2 XTR", "1 pár"], ["9XXW 2/3 REG", "1 pár"], ["9W REG H-CR", "1 pár"]])
     adatok = get_firebase_data()
     for w in widths:
         st.subheader(f"📦 \"{w}\" Szélesség")
