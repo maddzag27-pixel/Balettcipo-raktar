@@ -168,19 +168,79 @@ elif funkcio == "📊 Értékesítő":
         # Fontos: A függvény törzsének minden sora 4 vagy 8 szóközzel beljebb kell legyen!
         style = [f'background-color: {kemenyseg_szinek.get(row["Keménység"], "#FFFFFF")}; text-align: center'] * len(row)
         
-        # Ha "ÖSSZESEN" sor van, legyen szürke és félkövér
-        if row["Keménység"] == "ÖSSZESEN":
-            style = ['background-color: #f0f0f0; font-weight: bold; text-align: center'] * len(row)
+        # Ha "ÖSSZESEN" sor van, elif funkcio == "📊 Értékesítő":
+    st.title("📊 Értékesítői Nézet")
+
+    # 1. Speciális készlet
+    st.subheader("⚠️ ÉRTÉKESÍTHETŐ SPECIÁLIS KÉSZLET")
+    col1, col2, col3 = st.columns(3)
+    spec_data = {
+        "V-LV": [["7W FLX", "5 pár"], ["6XXW REG", "1 pár"], ["8XW XTR", "1 pár"], ["11XW SUP", "1 pár"]],
+        "U-LV": [["8W XFR", "1 pár"], ["8W REG", "2 pár"]],
+        "U-DV": [["8M SFT", "8 pár"], ["8M STR", "1 pár"], ["9M STR", "3 pár"], ["9W STR", "3 pár"]],
+        "U-DV-2": [["8W XST", "1 pár"], ["11XXW XST", "1 pár"], ["11W FLX", "1 pár"], ["11W STR", "1 pár"]],
+        "V-DV": [["8W 1/2 XTR", "1 pár"], ["9XW 1/2 XTR", "2 pár"], ["10XW 1/2 XTR", "1 pár"], ["9XXW 2/3 REG", "1 pár"], ["9W REG H-CR", "1 pár"]]
+    }
+    with col1:
+        st.info("### V-LV"); st.table(spec_data["V-LV"])
+        st.info("### U-LV"); st.table(spec_data["U-LV"])
+    with col2:
+        st.success("### U-DV (1. rész)"); st.table(spec_data["U-DV"])
+    with col3:
+        st.success("### U-DV (2. rész) & V-DV")
+        st.table(spec_data["U-DV-2"]); st.table(spec_data["V-DV"])
+    
+    st.divider()
+
+    # 2. Adatok betöltése
+    adatok = get_firebase_data()
+
+    # 3. Összes export gomb (egy fülön, egymás alatt)
+    if st.button("📥 Összes export egyetlen táblázatba"):
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            workbook = writer.book
+            worksheet = workbook.add_worksheet('Osszes_Keszlet')
             
+            cell_fmt = workbook.add_format({'border': 1, 'align': 'center'})
+            header_fmt = workbook.add_format({'bold': True, 'border': 1, 'bg_color': '#D3D3D3', 'align': 'center'})
+            title_fmt = workbook.add_format({'bold': True, 'font_size': 12})
+            
+            current_row = 0
+            for w in widths:
+                df_temp = get_matrix(adatok, w)
+                worksheet.write(current_row, 0, f"Szélesség: {w}", title_fmt)
+                current_row += 1
+                for col_num, value in enumerate(df_temp.columns.values):
+                    worksheet.write(current_row, col_num, value, header_fmt)
+                current_row += 1
+                rows, cols = df_temp.shape
+                for r in range(rows):
+                    for c in range(cols):
+                        worksheet.write(current_row + r, c, df_temp.iloc[r, c], cell_fmt)
+                current_row += rows + 2
+        
+        st.download_button(
+            label="✅ Letöltés (Egyetlen fülön)",
+            data=buffer.getvalue(),
+            file_name="Osszes_Keszlet_Egyben.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    # 4. Színező függvény
+    def szinezo(row):
+        k = row["Keménység"]
+        szin = kemenyseg_szinek.get(k, "#FFFFFF")
+        style = [f'background-color: {szin}; text-align: center'] * len(row)
+        if k == "ÖSSZESEN":
+            style = ['background-color: #f0f0f0; font-weight: bold; text-align: center'] * len(row)
         return style
 
-    # 3. Készlet táblázatok
-    adatok = get_firebase_data()
+    # 5. Készlet táblázatok megjelenítése
     for w in widths:
         st.subheader(f"📦 \"{w}\" Szélesség")
         df = get_matrix(adatok, w)
         
-        # A stílus alkalmazása:
         st.dataframe(
             df.style.apply(szinezo, axis=1).hide(axis="index"),
             use_container_width=True
