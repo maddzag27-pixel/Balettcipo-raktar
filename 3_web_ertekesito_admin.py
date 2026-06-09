@@ -72,8 +72,33 @@ def excel_export_gomb(df, nev):
     buffer = BytesIO()
     with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
         df.to_excel(writer, index=False, sheet_name='Keszlet')
-    st.download_button(label=f"📥 {nev} exportálása Excelbe", data=buffer.getvalue(), file_name=f"{nev}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        
+        # Hozzáférés az Excel fájlhoz és munkalaphoz
+        workbook = writer.book
+        worksheet = writer.sheets['Keszlet']
+        
+        # Szegély stílus definiálása
+        border_fmt = workbook.add_format({'border': 1})
+        
+        # Teljes táblázat kijelölése és szegélyezése
+        # A táblázat mérete: (sorok száma + 1 a fejléc miatt) x (oszlopok száma)
+        rows, cols = df.shape
+        worksheet.conditional_format(0, 0, rows, cols - 1, {
+            'type': 'no_blanks',
+            'format': border_fmt
+        })
+        
+        # Opcionális: A fejléc kiemelése
+        header_fmt = workbook.add_format({'bold': True, 'border': 1, 'bg_color': '#D3D3D3'})
+        for col_num, value in enumerate(df.columns.values):
+            worksheet.write(0, col_num, value, header_fmt)
 
+    st.download_button(
+        label=f"📥 {nev} exportálása Excelbe", 
+        data=buffer.getvalue(), 
+        file_name=f"{nev}.xlsx", 
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 # --- NAVIGÁCIÓ ---
 funkcio = st.sidebar.radio("Válassz felületet:", ["📱 Raktári Kiszedés", "📊 Értékesítő", "🔐 Admin"])
 
