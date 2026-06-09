@@ -152,36 +152,25 @@ elif funkcio == "🔐 Admin":
                                 ws.cell(row=sor, column=c+1, value=kem)
                                 ws.cell(row=sor, column=c+2, value=val)
                     
-                    # Összesítő sor számítása
-                    utolso_adat_sor = data_start + len(osszes_termek) - 1
+                   # ... a ciklus, ami kiírja a termékeket ...
+
                     osszes_sor = data_start + len(osszes_termek)
                     
-                    # 1. Napi összesítők (Hétfő - Péntek)
-                    # Fontos: A SUM tartomány csak a data_start és utolso_adat_sor közé mutasson!
+                    # 1. Napi összesítők (Hétfő, Kedd, Szerda, Csütörtök, Péntek)
+                    # Ezek csak az adott naphoz tartozó sorokat adják össze (pl. C4:C11)
                     for nap_index in range(5):
-                        c = nap_index * 4 + 3 # Darabszám oszlopa
-                        if utolso_adat_sor >= data_start:
-                            r_str = f"{ws.cell(row=data_start, column=c).coordinate}:{ws.cell(row=utolso_adat_sor, column=c).coordinate}"
-                            ws.cell(row=osszes_sor, column=c, value=f"=SUM({r_str})").font = Font(bold=True)
-
-                    # 2. Heti összesítő (A Péntek oszlopán TÚL, a T oszlopban - 20. oszlop)
-                    # Ez a cella nem része a napi összesítőknek, így nem lesz körkörös hivatkozás.
+                        c = nap_index * 4 + 3 
+                        r_str = f"{ws.cell(row=data_start, column=c).coordinate}:{ws.cell(row=utolso_adat_sor, column=c).coordinate}"
+                        ws.cell(row=osszes_sor, column=c, value=f"=SUM({r_str})").font = Font(bold=True)
+                    
+                    # 2. Heti összesítő: NE az S oszlopba (19) tegyük, hanem a T-be (20)!
+                    # Így az S12-ben csak a pénteki szám lesz, a T12-ben pedig a heti összes.
                     ws.cell(row=osszes_sor, column=20, value=f"=SUM(C{osszes_sor},G{osszes_sor},K{osszes_sor},O{osszes_sor},S{osszes_sor})").font = Font(bold=True)
                     
-                    # 2. Heti összesítő (Külön oszlopba, az S oszloptól jobbra, a T-be)
-                    ws.cell(row=osszes_sor, column=20, value="HETI ÖSSZESEN:").font = Font(bold=True)
-                    # A heti összesítő a napok összesítőit adja össze (C, G, K, O, S oszlopok a 12. sorban)
-                    ws.cell(row=osszes_sor, column=21, value=f"=SUM(C{osszes_sor},G{osszes_sor},K{osszes_sor},O{osszes_sor},S{osszes_sor})").font = Font(bold=True)
-                    
-                    # Heti összesítő (S oszlop = 19. oszlop)
-                    # Képlet: C, G, K, O, S oszlopok összege az összesítő sorban
-                    ws.cell(row=osszes_sor, column=19, value=f"=SUM(C{osszes_sor},G{osszes_sor},K{osszes_sor},O{osszes_sor},S{osszes_sor})").font = Font(bold=True)
-                    
-                    # Szegélyek A-tól S-ig (1-től 19-ig minden sorban)
+                    # 3. Szegélyek A-tól T-ig (1-től 20-ig)
                     for r in range(kezdo_sor, osszes_sor + 1):
-                        for c in range(1, 20):
+                        for c in range(1, 21):
                             ws.cell(row=r, column=c).border = thin_border
-                            
                     return osszes_sor + 2
 
                 # Adatok
