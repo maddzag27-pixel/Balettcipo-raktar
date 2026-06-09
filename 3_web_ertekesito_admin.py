@@ -96,7 +96,7 @@ if funkcio == "📱 Raktári Kiszedés":
 
 elif funkcio == "📊 Értékesítő":
     st.title("📊 Értékesítői Nézet")
-    st.subheader("⚠️ SPECIÁLIS KÉSZLET (FIX)")
+    st.subheader("⚠️ SPECIÁLIS KÉSZLET")
     
     col1, col2 = st.columns(2)
     
