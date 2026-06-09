@@ -165,17 +165,37 @@ elif funkcio == "🔐 Admin":
                             r_str = f"{ws.cell(row=data_start, column=c).coordinate}:{ws.cell(row=utolso_adat_sor, column=c).coordinate}"
                             ws.cell(row=osszes_sor, column=c, value=f"=SUM({r_str})").font = Font(bold=True)
                         
-                        # Dupla keret a napok között (a 3, 6, 9, 12. oszlopok jobb szélén)
-                        for r in range(kezdo_sor, osszes_sor + 1):
-                            ws.cell(row=r, column=c).border = Border(right=Side(style='double'), left=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-
-                    # Heti összesítő a 16. oszlopba
-                    ws.cell(row=osszes_sor, column=16, value=f"=SUM(C{osszes_sor},F{osszes_sor},I{osszes_sor},L{osszes_sor},O{osszes_sor})").font = Font(bold=True)
+                        # Szegélyek és elválasztók beállítása (vastag szimpla vonallal)
+                    thin = Side(style='thin')
+                    thick = Side(style='thick') # Vastag vonal definíciója
                     
-                    # Oszlopszélesség optimalizálása (16 oszlopra)
-                    for col_num in range(1, 17):
-                        col_letter = openpyxl.utils.get_column_letter(col_num)
-                        ws.column_dimensions[col_letter].width = 8 # Keskenyebb oszlopok
+                    for r in range(kezdo_sor, osszes_sor + 1):
+                        for c in range(1, 16): # 1-től 15-ig (napok adatai)
+                            # Ha az oszlop 3, 6, 9, 12, 15 (ezek a napok végei), akkor vastag jobb szegély
+                            is_day_end = (c % 3 == 0)
+                            border_style = Border(
+                                left=thin, 
+                                top=thin, 
+                                bottom=thin, 
+                                right=thick if is_day_end else thin
+                            )
+                            ws.cell(row=r, column=c).border = border_style
+                            
+                        # A 16. oszlop (Heti összesítő) szegélyezése
+                        ws.cell(row=r, column=16).border = Border(left=thick, right=thin, top=thin, bottom=thin)
+
+                    # Fejlécek keretezése (hogy a vastag vonalak ott is megjelenjenek)
+                    for r in range(kezdo_sor, kezdo_sor + 3):
+                        for c in range(1, 16):
+                            is_day_end = (c % 3 == 0)
+                            ws.cell(row=r, column=c).border = Border(
+                                left=thin, 
+                                top=thin, 
+                                bottom=thin, 
+                                right=thick if is_day_end else thin
+                            )
+                        # A 16. oszlop fejléc szegélye
+                        ws.cell(row=r, column=16).border = Border(left=thick, right=thin, top=thin, bottom=thin)
                     
                     return osszes_sor + 2
 
