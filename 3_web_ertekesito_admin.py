@@ -144,7 +144,7 @@ elif funkcio == "🔐 Admin":
                     osszes_sor = data_start
                     utolso_adat_sor = data_start - 1
                     
-                    # Adatok kiírása
+                   # Adatok kiírása
                     for i, (msz, kem) in enumerate(osszes_termek):
                         sor = data_start + i
                         utolso_adat_sor = sor 
@@ -152,9 +152,10 @@ elif funkcio == "🔐 Admin":
                             c = nap_index * 4 + 1
                             val = adat_szotar.get((nap_index, msz, kem), 0)
                             if val > 0:
-                                ws.cell(row=sor, column=c, value=msz)
-                                ws.cell(row=sor, column=c+1, value=kem)
-                                ws.cell(row=sor, column=c+2, value=int(val))
+                                # A .upper() alakítja nagybetűssé, a Font(bold=True) pedig félkövérré
+                                ws.cell(row=sor, column=c, value=str(msz).upper()).font = Font(bold=True)
+                                ws.cell(row=sor, column=c+1, value=str(kem).upper()).font = Font(bold=True)
+                                ws.cell(row=sor, column=c+2, value=int(val)).font = Font(bold=True)
                     
                     # Összesítő sor számítása
                     osszes_sor = data_start + len(osszes_termek)
