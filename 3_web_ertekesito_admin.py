@@ -150,29 +150,14 @@ elif funkcio == "📊 Értékesítő":
         st.subheader(f"📦 \"{w}\" Szélesség")
         df = get_matrix(adatok, w)
         
-        # 1. Stílus alkalmazása (színek)
+        # A stílus alkalmazása:
         styled_df = df.style.apply(szinezo, axis=1).hide(axis="index")
         
-        # 2. HTML-é konvertálás (ez a legbiztosabb módszer a középre igazításhoz)
-        html_table = styled_df.to_html()
-        
-        # 3. CSS injektálása közvetlenül a táblázat elé
-        st.markdown(f"""
-            <style>
-            .center-table table {{
-                margin-left: auto;
-                margin-right: auto;
-                text-align: center;
-            }}
-            .center-table td, .center-table th {{
-                text-align: center !important;
-                vertical-align: middle !important;
-            }}
-            </style>
-            <div class="center-table">
-                {html_table}
-            </div>
-        """, unsafe_allow_html=True)
+        # A stílusozott DataFrame megjelenítése (NEM HTML-ként!):
+        st.dataframe(
+            styled_df, 
+            use_container_width=True
+        )
         
         excel_export_gomb(df, f"Keszlet_{w}")
 elif funkcio == "🔐 Admin":
