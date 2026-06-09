@@ -127,20 +127,14 @@ elif funkcio == "📊 Értékesítő":
         st.subheader(f"📦 \"{w}\" Szélesség")
         df = get_matrix(adatok, w)
         
-        # A színező függvény definíciója
-        def szinezo(row):
-            k = row["Keménység"] # A sorból olvassuk ki a keménységet
-            if k == "ÖSSZESEN": 
-                return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
-            return [f'background-color: {kemenyseg_szinek.get(k, "#FFFFFF")}'] * len(row)
-
-        # Stílus alkalmazása: a style objektumot adjuk át
+        # Ide illeszd be a frissített megjelenítést:
         st.dataframe(
-            df.style.apply(szinezo, axis=1).hide(axis="index"), 
+            df.style.apply(szinezo, axis=1)
+            .hide(axis="index")
+            .set_properties(**{'text-align': 'center'}), 
             use_container_width=True
         )
         
-        # Az export gomb marad változatlanul
         excel_export_gomb(df, f"Keszlet_{w}")
 elif funkcio == "🔐 Admin":
     st.title("🔐 Adminisztráció")
