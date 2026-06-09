@@ -81,10 +81,15 @@ if funkcio == "📱 Raktári Kiszedés":
         if db_val > 0:
             db.collection("keszlet").document(sku).set({"mennyiseg": db_val - 1}, merge=True)
             db.collection("naplo").add({"datum": ma, "sku": sku, "tipus": "kiszedes", "darabszam": 1})
+            st.toast("✅ Kiszéve: 1 db", icon="📉") # Ez ad visszajelzést
             st.rerun()
+        else:
+            st.error("Hiba: Nincs elég készlet!")
+
     if b2.button("✅ VISSZARAKÁS (+1)"):
         db.collection("keszlet").document(sku).set({"mennyiseg": db_val + 1}, merge=True)
         db.collection("naplo").add({"datum": ma, "sku": sku, "tipus": "visszarakas", "darabszam": 1})
+        st.toast("✅ Visszarakva: 1 db", icon="📈") # Ez ad visszajelzést
         st.rerun()
 
 elif funkcio == "📊 Értékesítő":
