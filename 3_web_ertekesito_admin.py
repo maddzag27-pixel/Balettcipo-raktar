@@ -168,9 +168,6 @@ elif funkcio == "📊 Értékesítő":
         # Fontos: A függvény törzsének minden sora 4 vagy 8 szóközzel beljebb kell legyen!
         style = [f'background-color: {kemenyseg_szinek.get(row["Keménység"], "#FFFFFF")}; text-align: center'] * len(row)
         
-        # Ha "ÖSSZESEN" sor van, elif funkcio == "📊 Értékesítő":
-    st.title("📊 Értékesítői Nézet")
-
     # 2. Adatok betöltése
     adatok = get_firebase_data()
 
