@@ -139,14 +139,14 @@ elif funkcio == "📊 Értékesítő":
 
     # 2. Színező függvény
     def szinezo(row):
-    # Itt adjuk meg a "text-align: center"-t minden egyes cellára
-    style = [f'background-color: {kemenyseg_szinek.get(row["Keménység"], "#FFFFFF")}; text-align: center'] * len(row)
-    
-    # Ha "ÖSSZESEN" sor van, legyen szürke és félkövér
-    if row["Keménység"] == "ÖSSZESEN":
-        style = ['background-color: #f0f0f0; font-weight: bold; text-align: center'] * len(row)
+        # Fontos: A függvény törzsének minden sora 4 vagy 8 szóközzel beljebb kell legyen!
+        style = [f'background-color: {kemenyseg_szinek.get(row["Keménység"], "#FFFFFF")}; text-align: center'] * len(row)
         
-    return style
+        # Ha "ÖSSZESEN" sor van, legyen szürke és félkövér
+        if row["Keménység"] == "ÖSSZESEN":
+            style = ['background-color: #f0f0f0; font-weight: bold; text-align: center'] * len(row)
+            
+        return style
 
     # 3. Készlet táblázatok
     adatok = get_firebase_data()
@@ -155,9 +155,6 @@ elif funkcio == "📊 Értékesítő":
         df = get_matrix(adatok, w)
         
         # A stílus alkalmazása:
-        styled_df = df.style.apply(szinezo, axis=1).hide(axis="index")
-        
-        # A stílusozott DataFrame megjelenítése (NEM HTML-ként!):
         st.dataframe(
             df.style.apply(szinezo, axis=1).hide(axis="index"),
             use_container_width=True
