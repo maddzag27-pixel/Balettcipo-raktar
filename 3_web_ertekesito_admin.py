@@ -123,65 +123,59 @@ elif funkcio == "🔐 Admin":
 
                 def iras_blokkba(adat_szotar, kezdo_sor, cim):
                     # Cím egyesítése
-                    ws.merge_cells(start_row=kezdo_sor, start_column=1, end_row=kezdo_sor, end_column=19)
+                    ws.merge_cells(start_row=kezdo_sor, start_column=1, end_row=kezdo_sor, end_column=16)
                     ws.cell(row=kezdo_sor, column=1, value=cim).font = Font(bold=True, size=14)
                     ws.cell(row=kezdo_sor, column=1).alignment = center
                     
                     # Napok fejlécei
                     napok = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek"]
+                    # 3 oszlop (Méret, Keménység, Darab) * 5 nap = 15 oszlop összesen
                     for i, nap in enumerate(napok):
-                        col = i*4 + 1
+                        col = i*3 + 1
                         ws.merge_cells(start_row=kezdo_sor+1, start_column=col, end_row=kezdo_sor+1, end_column=col+2)
                         ws.cell(row=kezdo_sor+1, column=col, value=nap).font = Font(bold=True)
                         ws.cell(row=kezdo_sor+1, column=col).alignment = center
-                        ws.cell(row=kezdo_sor+2, column=col, value="Méret")
-                        ws.cell(row=kezdo_sor+2, column=col+1, value="Keménység")
-                        ws.cell(row=kezdo_sor+2, column=col+2, value="Darab")
+                        ws.cell(row=kezdo_sor+2, column=col, value="MÉRET")
+                        ws.cell(row=kezdo_sor+2, column=col+1, value="KEM.")
+                        ws.cell(row=kezdo_sor+2, column=col+2, value="DB")
 
                     osszes_termek = sorted(list(set((k[1], k[2]) for k in adat_szotar.keys())))
                     data_start = kezdo_sor + 3
                     
-                    osszes_sor = data_start
-                    utolso_adat_sor = data_start - 1
+                    osszes_sor = data_start + len(osszes_termek)
+                    utolso_adat_sor = data_start + len(osszes_termek) - 1
                     
-                   # Adatok kiírása
+                    # Adatok kiírása
                     for i, (msz, kem) in enumerate(osszes_termek):
                         sor = data_start + i
-                        utolso_adat_sor = sor 
                         for nap_index in range(5):
-                            c = nap_index * 4 + 1
+                            c = nap_index * 3 + 1
                             val = adat_szotar.get((nap_index, msz, kem), 0)
                             if val > 0:
-                                # A .upper() alakítja nagybetűssé, a Font(bold=True) pedig félkövérré
                                 ws.cell(row=sor, column=c, value=str(msz).upper()).font = Font(bold=True)
                                 ws.cell(row=sor, column=c+1, value=str(kem).upper()).font = Font(bold=True)
                                 ws.cell(row=sor, column=c+2, value=int(val)).font = Font(bold=True)
                     
-                    # Összesítő sor számítása
-                    osszes_sor = data_start + len(osszes_termek)
-                    
-                    # Napi összesítők
+                    # Napi és Heti összesítők (Heti a 16. oszlopba kerül)
+                    double_border = Border(right=Side(style='double'))
                     for nap_index in range(5):
-                        c = nap_index * 4 + 3
+                        c = nap_index * 3 + 3
+                        # Napi összesítő képlet
                         if utolso_adat_sor >= data_start:
                             r_str = f"{ws.cell(row=data_start, column=c).coordinate}:{ws.cell(row=utolso_adat_sor, column=c).coordinate}"
                             ws.cell(row=osszes_sor, column=c, value=f"=SUM({r_str})").font = Font(bold=True)
-                        else:
-                            ws.cell(row=osszes_sor, column=c, value=0).font = Font(bold=True)
+                        
+                        # Dupla keret a napok között (a 3, 6, 9, 12. oszlopok jobb szélén)
+                        for r in range(kezdo_sor, osszes_sor + 1):
+                            ws.cell(row=r, column=c).border = Border(right=Side(style='double'), left=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+                    # Heti összesítő a 16. oszlopba
+                    ws.cell(row=osszes_sor, column=16, value=f"=SUM(C{osszes_sor},F{osszes_sor},I{osszes_sor},L{osszes_sor},O{osszes_sor})").font = Font(bold=True)
                     
-                    # Heti összesítő (T oszlopba, 20. oszlop)
-                    ws.cell(row=osszes_sor, column=20, value=f"=SUM(C{osszes_sor},G{osszes_sor},K{osszes_sor},O{osszes_sor},S{osszes_sor})").font = Font(bold=True)
-                    
-                    # Szegélyek (szín nélkül, csak vonalak)
-                    for r in range(kezdo_sor, osszes_sor + 1):
-                        for c in range(1, 21):
-                            ws.cell(row=r, column=c).border = thin_border
-                    
-                    # Oszlopszélesség beállítása a jó nyomtathatóságért
-                    # A fejléc és az adatok miatt a 15-ös szélesség ideális
-                    for col_num in range(1, 21):
+                    # Oszlopszélesség optimalizálása (16 oszlopra)
+                    for col_num in range(1, 17):
                         col_letter = openpyxl.utils.get_column_letter(col_num)
-                        ws.column_dimensions[col_letter].width = 15
+                        ws.column_dimensions[col_letter].width = 8 # Keskenyebb oszlopok
                     
                     return osszes_sor + 2
 
