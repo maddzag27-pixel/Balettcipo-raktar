@@ -118,12 +118,13 @@ elif funkcio == "📊 Értékesítő":
         st.subheader(f"📦 \"{w}\" Szélesség")
         df = get_matrix(adatok, w)
         
-        # Most már biztosan látni fogja a 'szinezo'-t:
+        # Oszlop-konfiguráció létrehozása: minden oszlopot középre igazítunk
+        column_config = {col: st.column_config.Column(horizontal_alignment="center") for col in df.columns}
+        
         st.dataframe(
-            df.style.apply(szinezo, axis=1)
-            .hide(axis="index")
-            .set_properties(**{'text-align': 'center'}), 
-            use_container_width=True
+            df.style.apply(szinezo, axis=1).hide(axis="index"),
+            use_container_width=True,
+            column_config=column_config
         )
         
         excel_export_gomb(df, f"Keszlet_{w}")
