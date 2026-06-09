@@ -117,9 +117,22 @@ elif funkcio == "📊 Értékesítő":
     for w in widths:
         st.subheader(f"📦 \"{w}\" Szélesség")
         df = get_matrix(adatok, w)
-        st.dataframe(df.style.hide(axis="index"), use_container_width=True)
-        excel_export_gomb(df, f"Keszlet_{w}")
+        
+        # A színező függvény definíciója
+        def szinezo(row):
+            k = row["Keménység"] # A sorból olvassuk ki a keménységet
+            if k == "ÖSSZESEN": 
+                return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
+            return [f'background-color: {kemenyseg_szinek.get(k, "#FFFFFF")}'] * len(row)
 
+        # Stílus alkalmazása: a style objektumot adjuk át
+        st.dataframe(
+            df.style.apply(szinezo, axis=1).hide(axis="index"), 
+            use_container_width=True
+        )
+        
+        # Az export gomb marad változatlanul
+        excel_export_gomb(df, f"Keszlet_{w}")
 elif funkcio == "🔐 Admin":
     st.title("🔐 Adminisztráció")
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
