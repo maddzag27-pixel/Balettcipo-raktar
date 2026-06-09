@@ -5,7 +5,7 @@ from firebase_admin import credentials, firestore
 from datetime import datetime
 from io import BytesIO
 import openpyxl
-from openpyxl.styles import Font
+from openpyxl.styles import Font, Alignment, Border, Side
 
 # --- JELSZÓ BEÁLLÍTÁSA ---
 ADMIN_JELSZO = "admin123"
@@ -59,6 +59,12 @@ def get_matrix(adatok, w):
     final_df = pd.concat([final_df, pd.DataFrame([total_row])], ignore_index=True)
     return final_df
 
+def excel_export_gomb(df, nev):
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Keszlet')
+    st.download_button(label=f"📥 {nev} exportálása Excelbe", data=buffer.getvalue(), file_name=f"{nev}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 # --- NAVIGÁCIÓ ---
 funkcio = st.sidebar.radio("Válassz felületet:", ["📱 Raktári Kiszedés", "📊 Értékesítő", "🔐 Admin"])
 
@@ -71,58 +77,48 @@ if funkcio == "📱 Raktári Kiszedés":
     kemenyseg = c3.radio("Keménység:", hardnesses)
     sku = f"{meret}_{szelesseg}_{kemenyseg}"
     db_val = adatok.get(sku, 0)
-    
     st.info(f"Kiválasztva: **{sku}** | Aktuális készlet: **{db_val}**")
-    
     b1, b2 = st.columns(2)
     ma = datetime.now().strftime("%Y-%m-%d")
-    
     if b1.button("❌ KISZEDÉS (-1)"):
         if db_val > 0:
             db.collection("keszlet").document(sku).set({"mennyiseg": db_val - 1}, merge=True)
             db.collection("naplo").add({"datum": ma, "sku": sku, "tipus": "kiszedes", "darabszam": 1})
-            st.toast("✅ Kiszéve: 1 db", icon="📉")
-            st.cache_data.clear() # Töröljük a régi készletadatokat
-            st.rerun() # Újratöltés, ami már a friss adatot kéri le
-        else:
-            st.error("Hiba: Nincs elég készlet!")
-
+            st.rerun()
     if b2.button("✅ VISSZARAKÁS (+1)"):
         db.collection("keszlet").document(sku).set({"mennyiseg": db_val + 1}, merge=True)
         db.collection("naplo").add({"datum": ma, "sku": sku, "tipus": "visszarakas", "darabszam": 1})
-        st.toast("✅ Visszarakva: 1 db", icon="📈")
-        st.cache_data.clear() # Töröljük a régi készletadatokat
-        st.rerun() # Újratöltés, ami már a friss adatot kéri le
+        st.rerun()
 
 elif funkcio == "📊 Értékesítő":
     st.title("📊 Értékesítői Nézet")
     st.subheader("⚠️ ÉRTÉKESÍTHETŐ SPECIÁLIS KÉSZLET")
-    
     col1, col2, col3 = st.columns(3)
     
+    spec_data = {
+        "V-LV": [["7W FLX", "5 pár"], ["6XXW REG", "1 pár"], ["8XW XTR", "1 pár"], ["11XW SUP", "1 pár"]],
+        "U-LV": [["8W XFR", "1 pár"], ["8W REG", "2 pár"]],
+        "U-DV": [["8M SFT", "8 pár"], ["8M STR", "1 pár"], ["9M STR", "3 pár"], ["9W STR", "3 pár"]],
+        "U-DV-2": [["8W XST", "1 pár"], ["11XXW XST", "1 pár"], ["11W FLX", "1 pár"], ["11W STR", "1 pár"]],
+        "V-DV": [["8W 1/2 XTR", "1 pár"], ["9XW 1/2 XTR", "2 pár"], ["10XW 1/2 XTR", "1 pár"], ["9XXW 2/3 REG", "1 pár"], ["9W REG H-CR", "1 pár"]]
+    }
+    
     with col1:
-        st.info("### V-LV")
-        st.table([["7W FLX", "5 pár"], ["6XXW REG", "1 pár"], ["8XW XTR", "1 pár"], ["11XW SUP", "1 pár"]])
-        
-        st.info("### U-LV")
-        st.table([["8W XFR", "1 pár"], ["8W REG", "2 pár"]])
-        
+        st.info("### V-LV"); st.table(spec_data["V-LV"])
+        st.info("### U-LV"); st.table(spec_data["U-LV"])
     with col2:
-        st.success("### U-DV")
-        st.table([["8M SFT", "8 pár"], ["8M STR", "1 pár"], ["9M STR", "3 pár"], ["9W STR", "3 pár"],["8W XST", "1 pár"], ["11XXW XST", "1 pár"], ["11W FLX", "1 pár"], ["11W STR", "1 pár"]])
-        
+        st.success("### U-DV (1. rész)"); st.table(spec_data["U-DV"])
     with col3:
-        st.success("### V-DV")
-        st.table([["8W 1/2 XTR", "1 pár"], ["9XW 1/2 XTR", "2 pár"], ["10XW 1/2 XTR", "1 pár"], ["9XXW 2/3 REG", "1 pár"], ["9W REG H-CR", "1 pár"]])
+        st.success("### U-DV (2. rész) & V-DV")
+        st.table(spec_data["U-DV-2"]); st.table(spec_data["V-DV"])
+    
+    st.divider()
     adatok = get_firebase_data()
     for w in widths:
         st.subheader(f"📦 \"{w}\" Szélesség")
         df = get_matrix(adatok, w)
-        def szinezo(row):
-            k = df.loc[row.name, "Keménység"]
-            if k == "ÖSSZESEN": return ['background-color: #f0f0f0'] * len(row)
-            return [f'background-color: {kemenyseg_szinek.get(k, "#FFFFFF")}'] * len(row)
-        st.dataframe(df.style.apply(szinezo, axis=1).hide(axis="index"), use_container_width=True)
+        st.dataframe(df.style.hide(axis="index"), use_container_width=True)
+        excel_export_gomb(df, f"Keszlet_{w}")
 
 elif funkcio == "🔐 Admin":
     st.title("🔐 Adminisztráció")
