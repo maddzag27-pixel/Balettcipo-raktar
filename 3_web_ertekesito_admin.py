@@ -116,7 +116,7 @@ elif funkcio == "🔐 Admin":
                 ws = wb.active
                 
                 # Stílusok
-                from openpyxl.styles import Alignment, Border, Side
+                from openpyxl.styles import Alignment, Border, Side, Font
                 thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), 
                                      top=Side(style='thin'), bottom=Side(style='thin'))
                 center = Alignment(horizontal="center", vertical="center")
@@ -141,14 +141,13 @@ elif funkcio == "🔐 Admin":
                     osszes_termek = sorted(list(set((k[1], k[2]) for k in adat_szotar.keys())))
                     data_start = kezdo_sor + 3
                     
-                    # Itt definiáljuk az alapértelmezett értékeket, ha nincs adat
                     osszes_sor = data_start
                     utolso_adat_sor = data_start - 1
                     
                     # Adatok kiírása
                     for i, (msz, kem) in enumerate(osszes_termek):
                         sor = data_start + i
-                        utolso_adat_sor = sor # Frissítjük, ha van adat
+                        utolso_adat_sor = sor 
                         for nap_index in range(5):
                             c = nap_index * 4 + 1
                             val = adat_szotar.get((nap_index, msz, kem), 0)
@@ -178,7 +177,7 @@ elif funkcio == "🔐 Admin":
                             ws.cell(row=r, column=c).border = thin_border
                     return osszes_sor + 2
 
-                # Adatok
+                # Adatok begyűjtése
                 docs = list(db.collection("naplo").stream())
                 kiszedesek, visszarakasok = {}, {}
                 for doc in docs:
@@ -195,9 +194,17 @@ elif funkcio == "🔐 Admin":
                 kovetkezo_sor = iras_blokkba(kiszedesek, 1, f"{hét_szám} - KISZEDÉSEK")
                 iras_blokkba(visszarakasok, kovetkezo_sor, f"{hét_szám} - VISSZARAKÁSOK")
 
+                # Fájlnév és letöltés
+                fajlnev = f"frd_kiszedes_{datetime.now().strftime('%Y_%V')}.xlsx"
                 output = BytesIO()
                 wb.save(output)
-                st.download_button("📥 Letöltés: Heti Riport", data=output.getvalue(), file_name="Heti_Riport.xlsx")
+                
+                st.download_button(
+                    label="📥 Letöltés: Heti Riport", 
+                    data=output.getvalue(), 
+                    file_name=fajlnev, 
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
                 st.success("Sikeres generálás!")
             except Exception as e:
                 st.error(f"Hiba: {e}")
