@@ -172,10 +172,17 @@ elif funkcio == "🔐 Admin":
                     # Heti összesítő (T oszlopba, 20. oszlop)
                     ws.cell(row=osszes_sor, column=20, value=f"=SUM(C{osszes_sor},G{osszes_sor},K{osszes_sor},O{osszes_sor},S{osszes_sor})").font = Font(bold=True)
                     
-                    # Szegélyek
+                    # Szegélyek (szín nélkül, csak vonalak)
                     for r in range(kezdo_sor, osszes_sor + 1):
                         for c in range(1, 21):
                             ws.cell(row=r, column=c).border = thin_border
+                    
+                    # Oszlopszélesség beállítása a jó nyomtathatóságért
+                    # A fejléc és az adatok miatt a 15-ös szélesség ideális
+                    for col_num in range(1, 21):
+                        col_letter = openpyxl.utils.get_column_letter(col_num)
+                        ws.column_dimensions[col_letter].width = 15
+                    
                     return osszes_sor + 2
 
                 # Adatok begyűjtése
