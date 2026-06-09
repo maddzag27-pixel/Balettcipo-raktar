@@ -139,10 +139,14 @@ elif funkcio == "📊 Értékesítő":
 
     # 2. Színező függvény
     def szinezo(row):
-        k = row["Keménység"]
-        if k == "ÖSSZESEN": 
-            return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
-        return [f'background-color: {kemenyseg_szinek.get(k, "#FFFFFF")}'] * len(row)
+    # Itt adjuk meg a "text-align: center"-t minden egyes cellára
+    style = [f'background-color: {kemenyseg_szinek.get(row["Keménység"], "#FFFFFF")}; text-align: center'] * len(row)
+    
+    # Ha "ÖSSZESEN" sor van, legyen szürke és félkövér
+    if row["Keménység"] == "ÖSSZESEN":
+        style = ['background-color: #f0f0f0; font-weight: bold; text-align: center'] * len(row)
+        
+    return style
 
     # 3. Készlet táblázatok
     adatok = get_firebase_data()
