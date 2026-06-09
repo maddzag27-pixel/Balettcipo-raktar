@@ -77,19 +77,20 @@ def excel_export_gomb(df, nev):
         workbook = writer.book
         worksheet = writer.sheets['Keszlet']
         
-        # Szegély stílus definiálása
-        border_fmt = workbook.add_format({'border': 1})
+        # 1. Szegély formátum definiálása
+        cell_fmt = workbook.add_format({'border': 1})
         
-        # Teljes táblázat kijelölése és szegélyezése
-        # A táblázat mérete: (sorok száma + 1 a fejléc miatt) x (oszlopok száma)
+        # 2. Fejléc formátum (szegéllyel + háttérrel)
+        header_fmt = workbook.add_format({'bold': True, 'border': 1, 'bg_color': '#D3D3D3', 'align': 'center'})
+        
+        # 3. KÉZI KERETEZÉS: Minden cellára ráhúzzuk a keretet
         rows, cols = df.shape
-        worksheet.conditional_format(0, 0, rows, cols - 1, {
-            'type': 'no_blanks',
-            'format': border_fmt
-        })
+        # Végigmegyünk az összes soron és oszlopon, és alkalmazzuk a cell_fmt-et
+        for r in range(rows):
+            for c in range(cols):
+                worksheet.write(r + 1, c, df.iloc[r, c], cell_fmt)
         
-        # Opcionális: A fejléc kiemelése
-        header_fmt = workbook.add_format({'bold': True, 'border': 1, 'bg_color': '#D3D3D3'})
+        # 4. Fejléc újraírása (hogy a fejléc is szép legyen)
         for col_num, value in enumerate(df.columns.values):
             worksheet.write(0, col_num, value, header_fmt)
 
