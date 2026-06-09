@@ -156,13 +156,17 @@ elif funkcio == "🔐 Admin":
                     utolso_adat_sor = data_start + len(osszes_termek) - 1
                     osszes_sor = data_start + len(osszes_termek)
                     
-                    # Napi összesítők (Hétfőtől Péntekig - 5 nap)
-                    # 1. Napi összesítők (Minden napnak a saját oszlopába)
+                    # 1. Napi összesítők (Hétfő - Péntek)
+                    # Fontos: A SUM tartomány csak a data_start és utolso_adat_sor közé mutasson!
                     for nap_index in range(5):
-                        c = nap_index * 4 + 3 # A darabszám oszlopa (3, 7, 11, 15, 19)
-                        # Ide csak az adott nap tartománya kerül, saját magát nem tartalmazza
-                        r_str = f"{ws.cell(row=data_start, column=c).coordinate}:{ws.cell(row=utolso_adat_sor, column=c).coordinate}"
-                        ws.cell(row=osszes_sor, column=c, value=f"=SUM({r_str})").font = Font(bold=True)
+                        c = nap_index * 4 + 3 # Darabszám oszlopa
+                        if utolso_adat_sor >= data_start:
+                            r_str = f"{ws.cell(row=data_start, column=c).coordinate}:{ws.cell(row=utolso_adat_sor, column=c).coordinate}"
+                            ws.cell(row=osszes_sor, column=c, value=f"=SUM({r_str})").font = Font(bold=True)
+
+                    # 2. Heti összesítő (A Péntek oszlopán TÚL, a T oszlopban - 20. oszlop)
+                    # Ez a cella nem része a napi összesítőknek, így nem lesz körkörös hivatkozás.
+                    ws.cell(row=osszes_sor, column=20, value=f"=SUM(C{osszes_sor},G{osszes_sor},K{osszes_sor},O{osszes_sor},S{osszes_sor})").font = Font(bold=True)
                     
                     # 2. Heti összesítő (Külön oszlopba, az S oszloptól jobbra, a T-be)
                     ws.cell(row=osszes_sor, column=20, value="HETI ÖSSZESEN:").font = Font(bold=True)
