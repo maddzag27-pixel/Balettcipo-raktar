@@ -47,7 +47,11 @@ def get_matrix(adatok, w):
         for k in hardnesses:
             matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
     
-    total_sum = matrix.values.sum()
+    # NULLÁK ELREJTÉSE:
+    # A 0 értékeket lecseréljük üres stringre ("")
+    matrix = matrix.replace(0, "")
+    
+    total_sum = matrix.replace("", 0).values.sum() # Összegzéshez vissza kell állítani 0-ra
     final_df = matrix.copy()
     final_df.insert(0, "Keménység", hardnesses)
     final_df["Keménység "] = hardnesses 
