@@ -141,33 +141,38 @@ elif funkcio == "🔐 Admin":
                     osszes_termek = sorted(list(set((k[1], k[2]) for k in adat_szotar.keys())))
                     data_start = kezdo_sor + 3
                     
+                    # Itt definiáljuk az alapértelmezett értékeket, ha nincs adat
+                    osszes_sor = data_start
+                    utolso_adat_sor = data_start - 1
+                    
                     # Adatok kiírása
                     for i, (msz, kem) in enumerate(osszes_termek):
                         sor = data_start + i
+                        utolso_adat_sor = sor # Frissítjük, ha van adat
                         for nap_index in range(5):
                             c = nap_index * 4 + 1
                             val = adat_szotar.get((nap_index, msz, kem), 0)
                             if val > 0:
                                 ws.cell(row=sor, column=c, value=msz)
                                 ws.cell(row=sor, column=c+1, value=kem)
-                                ws.cell(row=sor, column=c+2, value=val)
+                                ws.cell(row=sor, column=c+2, value=int(val))
                     
-                   # ... a ciklus, ami kiírja a termékeket ...
-
+                    # Összesítő sor számítása
                     osszes_sor = data_start + len(osszes_termek)
                     
-                    # 1. Napi összesítők (Hétfő, Kedd, Szerda, Csütörtök, Péntek)
-                    # Ezek csak az adott naphoz tartozó sorokat adják össze (pl. C4:C11)
+                    # Napi összesítők
                     for nap_index in range(5):
-                        c = nap_index * 4 + 3 
-                        r_str = f"{ws.cell(row=data_start, column=c).coordinate}:{ws.cell(row=utolso_adat_sor, column=c).coordinate}"
-                        ws.cell(row=osszes_sor, column=c, value=f"=SUM({r_str})").font = Font(bold=True)
+                        c = nap_index * 4 + 3
+                        if utolso_adat_sor >= data_start:
+                            r_str = f"{ws.cell(row=data_start, column=c).coordinate}:{ws.cell(row=utolso_adat_sor, column=c).coordinate}"
+                            ws.cell(row=osszes_sor, column=c, value=f"=SUM({r_str})").font = Font(bold=True)
+                        else:
+                            ws.cell(row=osszes_sor, column=c, value=0).font = Font(bold=True)
                     
-                    # 2. Heti összesítő: NE az S oszlopba (19) tegyük, hanem a T-be (20)!
-                    # Így az S12-ben csak a pénteki szám lesz, a T12-ben pedig a heti összes.
+                    # Heti összesítő (T oszlopba, 20. oszlop)
                     ws.cell(row=osszes_sor, column=20, value=f"=SUM(C{osszes_sor},G{osszes_sor},K{osszes_sor},O{osszes_sor},S{osszes_sor})").font = Font(bold=True)
                     
-                    # 3. Szegélyek A-tól T-ig (1-től 20-ig)
+                    # Szegélyek
                     for r in range(kezdo_sor, osszes_sor + 1):
                         for c in range(1, 21):
                             ws.cell(row=r, column=c).border = thin_border
