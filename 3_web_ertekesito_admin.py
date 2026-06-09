@@ -127,7 +127,7 @@ elif funkcio == "🔐 Admin":
                     ws.cell(row=kezdo_sor, column=1, value=cim).font = Font(bold=True, size=14)
                     ws.cell(row=kezdo_sor, column=1).alignment = center
                     
-                    # Napok egyesítése
+                    # Napok fejlécei
                     napok = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek"]
                     for i, nap in enumerate(napok):
                         col = i*4 + 1
@@ -141,6 +141,7 @@ elif funkcio == "🔐 Admin":
                     osszes_termek = sorted(list(set((k[1], k[2]) for k in adat_szotar.keys())))
                     data_start = kezdo_sor + 3
                     
+                    # Adatok kiírása
                     for i, (msz, kem) in enumerate(osszes_termek):
                         sor = data_start + i
                         for nap_index in range(5):
@@ -151,24 +152,29 @@ elif funkcio == "🔐 Admin":
                                 ws.cell(row=sor, column=c+1, value=kem)
                                 ws.cell(row=sor, column=c+2, value=val)
                     
+                    # Összesítő sor számítása
                     utolso_adat_sor = data_start + len(osszes_termek) - 1
                     osszes_sor = data_start + len(osszes_termek)
                     
-                    # Összesítő sorok
+                    # Napi összesítők (Hétfőtől Péntekig - 5 nap)
                     for nap_index in range(5):
-                        c = nap_index * 4 + 3
-                        # Képlet: SUM a megfelelő cellákra
-                        r_str = f"{ws.cell(row=data_start, column=c).coordinate}:{ws.cell(row=utolso_adat_sor, column=c).coordinate}"
-                        ws.cell(row=osszes_sor, column=c, value=f"=SUM({r_str})").font = Font(bold=True)
+                        c = nap_index * 4 + 3 # Darab oszlop
+                        # Ellenőrizzük, hogy van-e adat (ha üres az adatblokk, ne írjon hibát)
+                        if utolso_adat_sor >= data_start:
+                            r_str = f"{ws.cell(row=data_start, column=c).coordinate}:{ws.cell(row=utolso_adat_sor, column=c).coordinate}"
+                            ws.cell(row=osszes_sor, column=c, value=f"=SUM({r_str})").font = Font(bold=True)
+                        else:
+                            ws.cell(row=osszes_sor, column=c, value=0).font = Font(bold=True)
                     
-                    # Heti összesítő: C, G, K, O, S oszlopok (3, 7, 11, 15, 19)
-                    # Itt pontosan összeadjuk az 5 nap összesítő celláját:
+                    # Heti összesítő (S oszlop = 19. oszlop)
+                    # Képlet: C, G, K, O, S oszlopok összege az összesítő sorban
                     ws.cell(row=osszes_sor, column=19, value=f"=SUM(C{osszes_sor},G{osszes_sor},K{osszes_sor},O{osszes_sor},S{osszes_sor})").font = Font(bold=True)
                     
-                    # Szegélyek A-tól S-ig (1-től 19-ig)
+                    # Szegélyek A-tól S-ig (1-től 19-ig minden sorban)
                     for r in range(kezdo_sor, osszes_sor + 1):
                         for c in range(1, 20):
                             ws.cell(row=r, column=c).border = thin_border
+                            
                     return osszes_sor + 2
 
                 # Adatok
