@@ -42,27 +42,32 @@ def get_firebase_data():
     except: return {}
 
 def get_matrix(adatok, w):
+    # 1. Mátrix létrehozása számokkal
     matrix = pd.DataFrame(0, index=hardnesses, columns=sizes)
     for m in sizes:
         for k in hardnesses:
             matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
     
-    # NULLÁK ELREJTÉSE:
-    # A 0 értékeket lecseréljük üres stringre ("")
+    # 2. ÖSSZEGZÉS: Ezt még akkor végezzük, amikor a táblázat tisztán számokból áll!
+    total_sum = matrix.values.sum()
+    total_row_values = matrix.sum(axis=0).to_dict()
+    
+    # 3. NULLÁK ELREJTÉSE: Csak most cseréljük le a 0-kat szövegre
     matrix = matrix.replace(0, "")
     
-    total_sum = matrix.replace("", 0).values.sum() # Összegzéshez vissza kell állítani 0-ra
+    # 4. Final DF építése
     final_df = matrix.copy()
     final_df.insert(0, "Keménység", hardnesses)
     final_df["Keménység "] = hardnesses 
     
-    total_row = matrix.sum(axis=0).to_dict()
+    # 5. Összesítő sor hozzáadása
+    total_row = total_row_values
     total_row["Keménység"] = "ÖSSZESEN"
     total_row["Keménység "] = str(total_sum)
     
     final_df = pd.concat([final_df, pd.DataFrame([total_row])], ignore_index=True)
     return final_df
-
+    
 def excel_export_gomb(df, nev):
     buffer = BytesIO()
     with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
