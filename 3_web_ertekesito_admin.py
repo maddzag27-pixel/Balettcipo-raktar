@@ -31,7 +31,7 @@ sizes = [str(i) for i in range(5, 15)]
 hardnesses = ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"]
 kemenyseg_szinek = {"LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", "SUP": "#E0E0E0", "REG": "#FFC000", "FRM": "#CD7F32", "STR": "#4682B4", "XFR": "#A6A6A6", "XST": "#CC0000"}
 
-@st.cache_data(ttl=30)
+@st.cache_data(ttl=0)
 def get_firebase_data():
     try:
         adatok = {}
