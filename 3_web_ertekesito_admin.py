@@ -246,22 +246,26 @@ elif funkcio == "🔐 Admin":
                         ws.cell(row=kezdo_sor+2, column=col+1, value="KEM.")
                         ws.cell(row=kezdo_sor+2, column=col+2, value="DB")
 
+                    # FONTOS: Gyűjtsük össze az ÖSSZES egyedi terméket, ami a héten valaha előfordult
+                    # Ezzel garantáljuk, hogy minden nap ugyanazokat a sorokat használja
                     osszes_termek = sorted(list(set((k[1], k[2]) for k in adat_szotar.keys())))
+                    
                     data_start = kezdo_sor + 3
                     osszes_sor = data_start + len(osszes_termek)
                     
-                    # 1. Adatok kiírása
+                    # Adatok kiírása
                     for i, (msz, kem) in enumerate(osszes_termek):
                         sor = data_start + i
                         for nap_index in range(5):
                             c = nap_index * 3 + 1
                             val = adat_szotar.get((nap_index, msz, kem), 0)
-                            if val > 0:
-                                ws.cell(row=sor, column=c, value=str(msz).upper()).font = Font(bold=True)
-                                ws.cell(row=sor, column=c+1, value=str(kem).upper()).font = Font(bold=True)
-                                ws.cell(row=sor, column=c+2, value=int(val)).font = Font(bold=True)
+                            
+                            # Kiírjuk akkor is, ha 0, hogy a táblázat strukturált maradjon
+                            ws.cell(row=sor, column=c, value=str(msz).upper()).font = Font(bold=True)
+                            ws.cell(row=sor, column=c+1, value=str(kem).upper()).font = Font(bold=True)
+                            ws.cell(row=sor, column=c+2, value=int(val)).font = Font(bold=True)
                     
-                    # 2. Képletek (Összesítők)
+                    # Képletek és keretezés (marad az eredeti logikád)
                     for nap_index in range(5):
                         c = nap_index * 3 + 3
                         r_str = f"{ws.cell(row=data_start, column=c).coordinate}:{ws.cell(row=osszes_sor-1, column=c).coordinate}"
@@ -269,26 +273,17 @@ elif funkcio == "🔐 Admin":
                     
                     ws.cell(row=osszes_sor, column=16, value=f"=SUM(C{osszes_sor},F{osszes_sor},I{osszes_sor},L{osszes_sor},O{osszes_sor})").font = Font(bold=True)
 
-                    # 3. Keretezés (Vastag választóvonalakkal)
                     thin = Side(style='thin')
                     thick = Side(style='thick')
-                    
                     for r in range(kezdo_sor, osszes_sor + 1):
                         for c in range(1, 17):
-                            # Melyik oszlop a nap vége? (3, 6, 9, 12, 15)
                             is_day_end = (c % 3 == 0) and (c < 16)
-                            border_style = Border(
-                                left=thin, top=thin, bottom=thin, 
-                                right=thick if is_day_end else thin
-                            )
-                            ws.cell(row=r, column=c).border = border_style
+                            ws.cell(row=r, column=c).border = Border(left=thin, top=thin, bottom=thin, right=thick if is_day_end else thin)
                     
-                    # Oszlopszélesség
                     for col_num in range(1, 17):
                         ws.column_dimensions[openpyxl.utils.get_column_letter(col_num)].width = 9
                         
                     return osszes_sor + 2
-
                 # Adatok begyűjtése
                 docs = list(db.collection("naplo").stream())
                 kiszedesek, visszarakasok = {}, {}
