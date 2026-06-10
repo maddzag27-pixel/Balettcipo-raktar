@@ -230,44 +230,50 @@ elif funkcio == "🔐 Admin":
                 center = Alignment(horizontal="center", vertical="center")
 
                 def iras_blokkba(adat_szotar, kezdo_sor, cim):
-                    # 1. Cím és fejlécek
-                    ws.merge_cells(start_row=kezdo_sor, start_column=1, end_row=kezdo_sor, end_column=16)
-                    ws.cell(row=kezdo_sor, column=1, value=cim).font = Font(bold=True, size=14)
-                    ws.cell(row=kezdo_sor, column=1).alignment = center
-                    
-                    napok = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek"]
-                    for i, nap in enumerate(napok):
-                        col = i*3 + 1
-                        ws.merge_cells(start_row=kezdo_sor+1, start_column=col, end_row=kezdo_sor+1, end_column=col+2)
-                        ws.cell(row=kezdo_sor+1, column=col, value=nap).font = Font(bold=True)
-                        ws.cell(row=kezdo_sor+1, column=col).alignment = center
-                        ws.cell(row=kezdo_sor+2, column=col, value="MÉRET"); ws.cell(row=kezdo_sor+2, column=col+1, value="KEM."); ws.cell(row=kezdo_sor+2, column=col+2, value="DB")
+    # 1. Cím és Fejlécek (Fix pozíciók)
+    ws.merge_cells(start_row=kezdo_sor, start_column=1, end_row=kezdo_sor, end_column=15)
+    ws.cell(row=kezdo_sor, column=1, value=cim).font = Font(bold=True, size=14)
+    ws.cell(row=kezdo_sor, column=1).alignment = center
+    
+    napok = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek"]
+    for i, nap in enumerate(napok):
+        col_start = i * 3 + 1
+        ws.merge_cells(start_row=kezdo_sor+1, start_column=col_start, end_row=kezdo_sor+1, end_column=col_start+2)
+        ws.cell(row=kezdo_sor+1, column=col_start, value=nap).font = Font(bold=True)
+        ws.cell(row=kezdo_sor+1, column=col_start).alignment = center
+        ws.cell(row=kezdo_sor+2, column=col_start, value="MÉRET"); ws.cell(row=kezdo_sor+2, column=col_start+1, value="KEM."); ws.cell(row=kezdo_sor+2, column=col_start+2, value="DB")
 
-                    # 2. Összesített terméklista (hogy minden nap "tudja", hová kell írni)
-                    osszes_termek = sorted(list(set((k[1], k[2]) for k in adat_szotar.keys())))
-                    data_start = kezdo_sor + 3
-                    
-                    # 3. Adatok kiírása: CSAK HA VAL > 0
-                    for i, (msz, kem) in enumerate(osszes_termek):
-                        sor = data_start + i
-                        for nap_index in range(5):
-                            c = nap_index * 3 + 1
-                            val = adat_szotar.get((nap_index, msz, kem), 0)
-                            if val > 0: # <-- CSAK A POZITÍVOK KERÜLNEK BE
-                                ws.cell(row=sor, column=c, value=str(msz).upper())
-                                ws.cell(row=sor, column=c+1, value=str(kem).upper())
-                                ws.cell(row=sor, column=c+2, value=int(val))
-                    
-                    # 4. Keretezés: Csak azokat a cellákat keretezzük, ahol adat van
-                    osszes_sor = data_start + len(osszes_termek)
-                    thin = Side(style='thin')
-                    thick = Side(style='thick')
-                    for r in range(kezdo_sor, osszes_sor + 1):
-                        for c in range(1, 16):
-                            is_day_end = (c % 3 == 0)
-                            ws.cell(row=r, column=c).border = Border(left=thin, top=thin, bottom=thin, right=thick if is_day_end else thin)
-                    
-                    return osszes_sor + 2
+    # 2. Összes termék keresése az adatbázisból (hogy a táblázat fix 10-15 soros legyen)
+    osszes_termek = sorted(list(set((k[1], k[2]) for k in adat_szotar.keys())))
+    data_start = kezdo_sor + 3
+    
+    # 3. KÉZI ÍRÁS - Itt nem számolunk, csak kitöltünk egy rácsot
+    for i, (msz, kem) in enumerate(osszes_termek):
+        row = data_start + i
+        for nap_index in range(5):
+            col = nap_index * 3 + 1
+            val = adat_szotar.get((nap_index, msz, kem), 0)
+            
+            # Formázás: csak akkor írunk, ha van adat
+            if val > 0:
+                ws.cell(row=row, column=col, value=msz.upper())
+                ws.cell(row=row, column=col+1, value=kem.upper())
+                ws.cell(row=row, column=col+2, value=int(val))
+    
+    # 4. ÖSSZESÍTŐK (Ez a sor lesz a táblázat alja)
+    osszes_sor = data_start + len(osszes_termek)
+    for nap_index in range(5):
+        col = nap_index * 3 + 3
+        # Itt fixen összegezzük az oszlopot az első 15 sorban
+        r_str = f"{ws.cell(row=data_start, column=col).coordinate}:{ws.cell(row=osszes_sor-1, column=col).coordinate}"
+        ws.cell(row=osszes_sor, column=col, value=f"=SUM({r_str})").font = Font(bold=True)
+    
+    # 5. Keretezés (Fix rács 5 nap x 3 oszlop)
+    for r in range(kezdo_sor, osszes_sor + 1):
+        for c in range(1, 16):
+            ws.cell(row=r, column=c).border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+    return osszes_sor + 2
                 # Adatok begyűjtése
                 docs = list(db.collection("naplo").stream())
                 kiszedesek, visszarakasok = {}, {}
