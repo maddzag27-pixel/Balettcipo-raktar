@@ -242,7 +242,8 @@ elif funkcio == "🔐 Admin":
                         ws.cell(kezdo_sor+2, c, "MÉRET"); ws.cell(kezdo_sor+2, c+1, "KEM."); ws.cell(kezdo_sor+2, c+2, "DB")
 
                     # 2. A kulcs: Összegyűjtjük az ÖSSZES terméket, ami a héten valaha előfordult
-                    osszes_termek = sorted(list(set((k[1], k[2]) for k in adat_szotar.keys())))
+                    kulcsok = list(adat_szotar.keys())
+                    osszes_termek = sorted(list(set((k[1], k[2]) for k in kulcsok)))
                     
                     # 3. KÉZI ÍRÁS - Minden termék egy fix sorba kerül
                     for i, (msz, kem) in enumerate(osszes_termek):
