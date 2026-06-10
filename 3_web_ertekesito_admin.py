@@ -128,19 +128,10 @@ if funkcio == "📱 Raktári Kiszedés":
 elif funkcio == "📊 Értékesítő":
     st.title("📊 Értékesítői Nézet")
 
-    # --- CSS A KÖZÉPRE IGAZÍTÁSHOZ ---
-    st.markdown("""
-        <style>
-        /* Minden cella tartalmát középre igazítja a dataframe-ben */
-        [data-testid="stDataFrame"] td {
-            text-align: center !important;
-        }
-        /* A fejléceket is középre igazítja */
-        [data-testid="stDataFrame"] th {
-            text-align: center !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+    # Frissítés gomb
+    if st.button("🔄 Adatok frissítése"):
+        st.cache_data.clear()
+        st.rerun()
 
     # 1. Speciális készlet
     st.subheader("⚠️ ÉRTÉKESÍTHETŐ SPECIÁLIS KÉSZLET")
