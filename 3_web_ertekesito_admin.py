@@ -230,7 +230,11 @@ elif funkcio == "🔐 Admin":
                 center = Alignment(horizontal="center", vertical="center")
 
                 def iras_blokkba(adat_szotar, kezdo_sor, cim):
-                    # 1. Fejlécek
+                    # 1. BIZTONSÁGI ELLENŐRZÉS: Ha nem dict, csináljunk belőle egy üres dict-et
+                    if not isinstance(adat_szotar, dict):
+                        adat_szotar = {}
+                
+                    # 2. Fejlécek (Ez marad a régi)
                     ws.merge_cells(start_row=kezdo_sor, start_column=1, end_row=kezdo_sor, end_column=15)
                     ws.cell(row=kezdo_sor, column=1, value=cim).font = Font(bold=True, size=14)
                     
