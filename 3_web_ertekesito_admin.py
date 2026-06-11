@@ -54,14 +54,12 @@ def szinezo(row):
     color = szinek.get(row["Keménység"], "#FFFFFF")
     return [f'background-color: {color}'] * len(row)
 
-# --- RIPORT GENERÁLÁS (Sablon alapú) ---
+# --- RIPORT GENERÁLÁS ---
 def generate_weekly_report(year, week):
-    # Itt fogjuk este a teljes logikát (copyCellStyleAndLayout) visszaépíteni
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "FRD kiszedés"
     ws.cell(row=1, column=1, value=f"Riport: {year}. év, {week}. hét")
-    # A későbbiekben ide jön a pontos cella-logikád
     buffer = BytesIO()
     wb.save(buffer)
     return buffer.getvalue()
@@ -91,7 +89,7 @@ if funkcio == "📱 Raktári Kiszedés":
         st.rerun()
 
     st.divider()
-    st.subheader("📥 Heti riport")
+    st.subheader("📥 Heti riport export")
     ev, het = st.columns(2)
     ev_in = ev.number_input("Év", value=datetime.now().year)
     het_in = het.number_input("Hét", value=datetime.now().isocalendar()[1])
@@ -102,6 +100,17 @@ if funkcio == "📱 Raktári Kiszedés":
 elif funkcio == "📊 Értékesítő":
     st.title("📊 Értékesítői Nézet")
     adatok = get_firebase_data()
+    
+    # Letöltés gomb visszaállítva!
+    if st.button("📥 Összes leltár exportálása"):
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            row = 0
+            for w in ["M", "W", "XW", "XXW"]:
+                get_matrix(adatok, w).replace(0, "").to_excel(writer, sheet_name="Keszlet", startrow=row, index=False)
+                row += 15
+        st.download_button("✅ Letöltés (Excel)", buffer.getvalue(), "Leltar_Osszes.xlsx")
+    
     for w in ["M", "W", "XW", "XXW"]:
         st.subheader(f"📦 {w} szélesség")
         df = get_matrix(adatok, w).replace(0, "")
