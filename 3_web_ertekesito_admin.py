@@ -5,7 +5,6 @@ from firebase_admin import credentials, firestore
 from datetime import datetime, timedelta
 from io import BytesIO
 import openpyxl
-from openpyxl.styles import Font, Alignment, Border, Side
 
 # --- KONFIGURÁCIÓ ---
 ADMIN_JELSZO = "admin123"
@@ -42,16 +41,8 @@ def get_matrix(adatok, w):
     df["Keménység_Jobb"] = df["Keménység"]
     return df
 
-def szinezo(row):
-    szinek = {"LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", "SUP": "#E0E0E0", "REG": "#FFC000", "FRM": "#CD7F32", "STR": "#4682B4", "XFR": "#A6A6A6", "XST": "#CC0000"}
-    if row["Keménység"] == "ÖSSZESEN": return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
-    color = szinek.get(row["Keménység"], "#FFFFFF")
-    return [f'background-color: {color}'] * len(row)
-
-# --- RIPORT GENERÁLÁS ---
 def generate_weekly_report(year, week):
-    # Itt kellene a template.xlsx alapú bonyolultabb logika
-    # Jelenleg egy alap struktúrát hoz létre, amit este bővíthetünk
+    # Itt fogjuk később implementálni a template alapú logikát
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "FRD kiszedés"
@@ -96,35 +87,26 @@ if funkcio == "📱 Raktári Kiszedés":
 elif funkcio == "📊 Értékesítő":
     st.title("📊 Értékesítői Nézet")
     adatok = get_firebase_data()
-    if st.button("📥 Összes exportálása"):
-        buffer = BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            row = 0
-            for w in ["M", "W", "XW", "XXW"]:
-                get_matrix(adatok, w).replace(0, "").to_excel(writer, sheet_name="Keszlet", startrow=row, index=False)
-                row += 15
-        st.download_button("✅ Letöltés (Excel)", buffer.getvalue(), "Keszlet_Osszes.xlsx")
-    
     for w in ["M", "W", "XW", "XXW"]:
         st.subheader(f"📦 {w} szélesség")
         df = get_matrix(adatok, w).replace(0, "")
-        st.dataframe(df.style.apply(szinezo, axis=1), use_container_width=True)
+        st.dataframe(df, use_container_width=True)
 
 # --- ADMIN OLDAL ---
 elif funkcio == "🔐 Admin":
     st.title("🔐 Adminisztráció")
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
-        st.subheader("🛠 Készlet módosítás")
+        st.subheader("🛠 Készlet áttekintése és módosítása")
+        adatok = get_firebase_data()
+        for w in ["M", "W", "XW", "XXW"]:
+            with st.expander(f"📦 {w} szélesség"):
+                st.dataframe(get_matrix(adatok, w).replace(0, ""), use_container_width=True)
+        
+        st.divider()
         sku = st.selectbox("SKU:", [f"{m}_{w}_{k}" for m in range(5,15) for w in ["M","W","XW","XXW"] for k in ["LGH","SFT","FLX","SUP","REG","FRM","STR","XFR","XST"]])
         uj = st.number_input("Új érték:", value=0)
         if st.button("Mentés"):
             db.collection("keszlet").document(sku).set({"mennyiseg": uj}, merge=True)
             st.rerun()
-            
-        st.divider()
-        st.subheader("📅 Napi napló")
-        naplo_docs = db.collection("naplo").where("datum", "==", datetime.now().strftime("%Y-%m-%d")).stream()
-        naplo_adatok = [d.to_dict() for d in naplo_docs]
-        if naplo_adatok: st.table(pd.DataFrame(naplo_adatok))
     else:
         st.warning("Add meg a jelszót!")
