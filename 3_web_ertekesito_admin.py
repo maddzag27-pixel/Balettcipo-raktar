@@ -32,26 +32,34 @@ def get_matrix(adatok, w):
     sizes = [str(i) for i in range(5, 15)]
     hardnesses = ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"]
     
-    # 1. Alap mátrix (sorok: keménységek, oszlopok: méretek)
+    # 1. Alap mátrix
     matrix = pd.DataFrame(0, index=hardnesses, columns=sizes)
     for m in sizes:
         for k in hardnesses:
             matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
     
-    # 2. Oszloponkénti összesítés az utolsó sorba
-    osszeg_sor = matrix.sum(axis=0)
-    # A jobb alsó sarok a teljes készlet (összes méret összege)
-    vegs_osszeg = osszeg_sor.sum()
-    
-    # 3. Mátrix kiegészítése az utolsó sorral
+    # 2. DataFrame előkészítése
     df = matrix.reset_index().rename(columns={"index": "Keménység"})
     
-    # 4. Keménység oszlop megduplázása a 14-es méret után
-    df["Keménység_Másolat"] = df["Keménység"]
+    # 3. Oszloponkénti összegek számítása
+    osszeg_sor = matrix.sum(axis=0)
+    vegs_osszeg = osszeg_sor.sum()
     
-    # 5. Végső összesítő sor hozzáadása
+    # 4. Utolsó oszlop (ismételt Keménység) hozzáadása
+    df["Keménység.1"] = df["Keménység"] 
+    # Megjegyzés: A pandas nem enged két azonos nevű oszlopot, 
+    # de a megjelenítésnél átnevezhetjük, hogy vizuálisan "Keménység" legyen.
+    
+    # 5. Végső összesítő sor
     osszeg_sor_row = ["ÖSSZESEN"] + list(osszeg_sor) + [vegs_osszeg]
     df.loc[len(df)] = osszeg_sor_row
+    
+    # Oszlopok sorrendje: Keménység, 5-14, Keménység (ismétlés)
+    cols = ["Keménység"] + sizes + ["Keménység.1"]
+    df = df[cols]
+    
+    # Átnevezés a megjelenítéshez
+    df = df.rename(columns={"Keménység.1": "Keménység"})
     
     return df
 def szinezo(row):
