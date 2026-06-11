@@ -28,40 +28,40 @@ def get_firebase_data():
     docs = db.collection("keszlet").stream()
     return {doc.id: int(doc.to_dict().get("mennyiseg", 0)) for doc in docs}
 
-def get_matrix(adatok, w):
-    sizes = [str(i) for i in range(5, 15)]
-    hardnesses = ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"]
-    
-    # 1. Alap mátrix
-    matrix = pd.DataFrame(0, index=hardnesses, columns=sizes)
-    for m in sizes:
-        for k in hardnesses:
-            matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
-    
-    # 2. DataFrame előkészítése
-    df = matrix.reset_index().rename(columns={"index": "Keménység"})
-    
-    # 3. Oszloponkénti összegek számítása
-    osszeg_sor = matrix.sum(axis=0)
-    vegs_osszeg = osszeg_sor.sum()
-    
-    # 4. Utolsó oszlop (ismételt Keménység) hozzáadása
-    df["Keménység.1"] = df["Keménység"] 
-    # Megjegyzés: A pandas nem enged két azonos nevű oszlopot, 
-    # de a megjelenítésnél átnevezhetjük, hogy vizuálisan "Keménység" legyen.
-    
-    # 5. Végső összesítő sor
-    osszeg_sor_row = ["ÖSSZESEN"] + list(osszeg_sor) + [vegs_osszeg]
-    df.loc[len(df)] = osszeg_sor_row
-    
-    # Oszlopok sorrendje: Keménység, 5-14, Keménység (ismétlés)
-    cols = ["Keménység"] + sizes + ["Keménység.1"]
-    df = df[cols]
-    
-    # Átnevezés a megjelenítéshez
-    df = df.rename(columns={"Keménység.1": "Keménység"})
-    
-    return df
+    def get_matrix(adatok, w):
+        sizes = [str(i) for i in range(5, 15)]
+        hardnesses = ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"]
+        
+        # 1. Alap mátrix
+        matrix = pd.DataFrame(0, index=hardnesses, columns=sizes)
+        for m in sizes:
+            for k in hardnesses:
+                matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
+        
+        # 2. DataFrame előkészítése
+        df = matrix.reset_index().rename(columns={"index": "Keménység"})
+        
+        # 3. Oszloponkénti összegek számítása
+        osszeg_sor = matrix.sum(axis=0)
+        vegs_osszeg = osszeg_sor.sum()
+        
+        # 4. Utolsó oszlop (ismételt Keménység) hozzáadása
+        df["Keménység.1"] = df["Keménység"] 
+        # Megjegyzés: A pandas nem enged két azonos nevű oszlopot, 
+        # de a megjelenítésnél átnevezhetjük, hogy vizuálisan "Keménység" legyen.
+        
+        # 5. Végső összesítő sor
+        osszeg_sor_row = ["ÖSSZESEN"] + list(osszeg_sor) + [vegs_osszeg]
+        df.loc[len(df)] = osszeg_sor_row
+        
+        # Oszlopok sorrendje: Keménység, 5-14, Keménység (ismétlés)
+        cols = ["Keménység"] + sizes + ["Keménység.1"]
+        df = df[cols]
+        
+        # Átnevezés a megjelenítéshez
+        df = df.rename(columns={"Keménység.1": "Keménység"})
+        
+        return df
 def szinezo(row):
     color = {"LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", "SUP": "#E0E0E0", "REG": "#FFC000", "FRM": "#CD7F32", "STR": "#4682B4", "XFR": "#A6A6A6", "XST": "#CC0000"}.get(row["Keménység"], "#FFFFFF")
     if row["Keménység"] == "ÖSSZESEN": return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
