@@ -31,14 +31,23 @@ def get_firebase_data():
 def get_matrix(adatok, w):
     sizes = [str(i) for i in range(5, 15)]
     hardnesses = ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"]
+    
+    # 1. Alap mátrix: sorok = keménységek, oszlopok = méretek
     matrix = pd.DataFrame(0, index=hardnesses, columns=sizes)
     for m in sizes:
         for k in hardnesses:
             matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
     
-    matrix['ÖSSZESEN'] = matrix.sum(axis=1)
-    matrix.loc['ÖSSZESEN'] = matrix.sum(axis=0)
-    df = matrix.reset_index().rename(columns={"index": "Keménység"})
+    # 2. Oszloponkénti összesítés (a mátrix alá)
+    osszeg_sor = matrix.sum(axis=0)
+    osszeg_sor.name = "ÖSSZESEN"
+    
+    # 3. Mátrix és az összesítő sor egyesítése
+    df = pd.concat([matrix, pd.DataFrame([osszeg_sor])])
+    
+    # 4. A keménységeket tartalmazó indexet oszloppá alakítjuk
+    df = df.reset_index().rename(columns={"index": "Keménység"})
+    
     return df
 
 def szinezo(row):
