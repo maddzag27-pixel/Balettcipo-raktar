@@ -38,16 +38,20 @@ def get_matrix(adatok, w):
         for k in hardnesses:
             matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
     
-    # Soronkénti összeg (jobb szélre)
-    matrix["ÖSSZESEN"] = matrix.sum(axis=1)
-    
-    # Oszloponkénti összeg (az ÖSSZESEN sorba)
+    # 1. Oszloponkénti összeg (az ÖSSZESEN sorhoz)
     osszeg_sor = matrix.sum(axis=0)
     
+    # 2. DataFrame összeállítása
     df = matrix.reset_index().rename(columns={"index": "Keménység"})
     
-    # A legutolsó sor felülírása a kiszámolt oszlop-összegekkel
+    # 3. ÖSSZESEN sor hozzáadása
     df.loc[len(df)] = ["ÖSSZESEN"] + list(osszeg_sor)
+    
+    # 4. Jobb szélső oszlop: Keménység másolata
+    df["Keménység_Jobb"] = df["Keménység"]
+    
+    # 5. Végösszeg beírása a jobb alsó cellába (ÖSSZESEN sor, utolsó oszlop)
+    df.at[len(df)-1, "Keménység_Jobb"] = int(osszeg_sor.sum())
     
     return df
 
