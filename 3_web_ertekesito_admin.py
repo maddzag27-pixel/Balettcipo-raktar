@@ -8,19 +8,8 @@ import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side
 
 # --- KONFIGURÁCIÓ ---
-ADMIN_JELSZO = "admin123"
-st.set_page_config(page_title="Balettcipő Raktár", layout="wide")import streamlit as st
-import pandas as pd
-import firebase_admin
-from firebase_admin import credentials, firestore
-from datetime import datetime
-from io import BytesIO
-import openpyxl
-from openpyxl.styles import Font, Alignment, Border, Side
-
-# --- KONFIGURÁCIÓ ---
-ADMIN_JELSZO = "admin123"
 st.set_page_config(page_title="Balettcipő Raktár", layout="wide")
+ADMIN_JELSZO = "admin123"
 
 # --- FIREBASE ---
 @st.cache_resource
