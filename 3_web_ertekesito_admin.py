@@ -1,100 +1,140 @@
-import streamlit as st
-import pandas as pd
-import firebase_admin
-from firebase_admin import credentials, firestore
-from datetime import datetime
-from io import BytesIO
-import openpyxl
-from openpyxl.styles import Font, Alignment, Border, Side
+center = Alignment(horizontal="center", vertical="center")
 
-# --- KONFIGURÁCIÓ ---
-ADMIN_JELSZO = "admin123"
-st.set_page_config(page_title="Balettcipő Raktár", layout="wide")
-
-# --- FIREBASE ---
-@st.cache_resource
-def get_db():
-    if not firebase_admin._apps:
-        secrets = st.secrets["firestore"]
-        cred_dict = dict(secrets)
-        cred_dict["private_key"] = cred_dict["private_key"].replace("\\n", "\n")
-        cred = credentials.Certificate(cred_dict)
-        firebase_admin.initialize_app(cred)
-    return firestore.client()
-
-db = get_db()
-
-# --- SEGÉDFÜGGVÉNYEK ---
-def get_firebase_data():
-    try:
-        adatok = {}
-        docs = db.collection("keszlet").stream()
-        for doc in docs:
-            adatok[doc.id] = int(doc.to_dict().get("mennyiseg", 0))
-        return adatok
-    except: return {}
-
-def iras_blokkba(ws, adat_szotar, kezdo_sor, cim):
-    # Fejlécek
+def iras_blokkba(adat_szotar, kezdo_sor, cim):
+                    # 1. Cím és fejlécek
+                    ws.merge_cells(start_row=kezdo_sor, start_column=1, end_row=kezdo_sor, end_column=16)
+                    ws.cell(row=kezdo_sor, column=1, value=cim).font = Font(bold=True, size=14)
+                    ws.cell(row=kezdo_sor, column=1).alignment = center
+                    
+                    napok = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek"]
+                    for i, nap in enumerate(napok):
+                        col = i*3 + 1
+                        ws.merge_cells(start_row=kezdo_sor+1, start_column=col, end_row=kezdo_sor+1, end_column=col+2)
+                        ws.cell(row=kezdo_sor+1, column=col, value=nap).font = Font(bold=True)
+                        ws.cell(row=kezdo_sor+1, column=col).alignment = center
+                        ws.cell(row=kezdo_sor+2, column=col, value="MÉRET"); ws.cell(row=kezdo_sor+2, column=col+1, value="KEM."); ws.cell(row=kezdo_sor+2, column=col+2, value="DB")
+    # 1. Cím és Fejlécek (Fix pozíciók)
     ws.merge_cells(start_row=kezdo_sor, start_column=1, end_row=kezdo_sor, end_column=15)
     ws.cell(row=kezdo_sor, column=1, value=cim).font = Font(bold=True, size=14)
+    ws.cell(row=kezdo_sor, column=1).alignment = center
+    
     napok = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek"]
     for i, nap in enumerate(napok):
-        c = i * 3 + 1
-        ws.merge_cells(kezdo_sor+1, c, kezdo_sor+1, c+2)
-        ws.cell(kezdo_sor+1, c, nap).font = Font(bold=True)
-        ws.cell(kezdo_sor+2, c, "MÉRET"); ws.cell(kezdo_sor+2, c+1, "KEM."); ws.cell(kezdo_sor+2, c+2, "DB")
+        col_start = i * 3 + 1
+        ws.merge_cells(start_row=kezdo_sor+1, start_column=col_start, end_row=kezdo_sor+1, end_column=col_start+2)
+        ws.cell(row=kezdo_sor+1, column=col_start, value=nap).font = Font(bold=True)
+        ws.cell(row=kezdo_sor+1, column=col_start).alignment = center
+        ws.cell(row=kezdo_sor+2, column=col_start, value="MÉRET"); ws.cell(row=kezdo_sor+2, column=col_start+1, value="KEM."); ws.cell(row=kezdo_sor+2, column=col_start+2, value="DB")
+
+    # 2. Összes termék keresése az adatbázisból (hogy a táblázat fix 10-15 soros legyen)
+    osszes_termek = sorted(list(set((k[1], k[2]) for k in adat_szotar.keys())))
+    data_start = kezdo_sor + 3
     
-    # Adatok
-    termekek = sorted({(k[1], k[2]) for k in adat_szotar.keys() if isinstance(k, tuple)})
-    for i, (msz, kem) in enumerate(termekek):
-        row = kezdo_sor + 3 + i
-        for nap_idx in range(5):
-            val = adat_szotar.get((nap_idx, msz, kem), 0)
-            ws.cell(row=row, column=nap_idx*3+1, value=msz.upper())
-            ws.cell(row=row, column=nap_idx*3+2, value=kem.upper())
-            ws.cell(row=row, column=nap_idx*3+3, value=val if val > 0 else "")
-            # Keretezés
-            for c in range(1, 16):
-                ws.cell(row=row, column=c).border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    # 3. KÉZI ÍRÁS - Itt nem számolunk, csak kitöltünk egy rácsot
+    for i, (msz, kem) in enumerate(osszes_termek):
+        row = data_start + i
+        for nap_index in range(5):
+            col = nap_index * 3 + 1
+            val = adat_szotar.get((nap_index, msz, kem), 0)
+            
+            # Formázás: csak akkor írunk, ha van adat
+            if val > 0:
+                ws.cell(row=row, column=col, value=msz.upper())
+                ws.cell(row=row, column=col+1, value=kem.upper())
+                ws.cell(row=row, column=col+2, value=int(val))
     
-    return kezdo_sor + 3 + len(termekek) + 2
+    # 4. ÖSSZESÍTŐK (Ez a sor lesz a táblázat alja)
+    osszes_sor = data_start + len(osszes_termek)
+    for nap_index in range(5):
+        col = nap_index * 3 + 3
+        # Itt fixen összegezzük az oszlopot az első 15 sorban
+        r_str = f"{ws.cell(row=data_start, column=col).coordinate}:{ws.cell(row=osszes_sor-1, column=col).coordinate}"
+        ws.cell(row=osszes_sor, column=col, value=f"=SUM({r_str})").font = Font(bold=True)
+    
+    # 5. Keretezés (Fix rács 5 nap x 3 oszlop)
+    for r in range(kezdo_sor, osszes_sor + 1):
+        for c in range(1, 16):
+            ws.cell(row=r, column=c).border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
 
-# --- FŐMENÜ ---
-funkcio = st.sidebar.radio("Válassz felületet:", ["📱 Raktári Kiszedés", "📊 Értékesítő", "🔐 Admin"])
+                    # 2. Összesített terméklista (hogy minden nap "tudja", hová kell írni)
+                    osszes_termek = sorted(list(set((k[1], k[2]) for k in adat_szotar.keys())))
+                    data_start = kezdo_sor + 3
+                    
+                    # 3. Adatok kiírása: CSAK HA VAL > 0
+                    for i, (msz, kem) in enumerate(osszes_termek):
+                        sor = data_start + i
+                        for nap_index in range(5):
+                            c = nap_index * 3 + 1
+                            val = adat_szotar.get((nap_index, msz, kem), 0)
+                            if val > 0: # <-- CSAK A POZITÍVOK KERÜLNEK BE
+                                ws.cell(row=sor, column=c, value=str(msz).upper())
+                                ws.cell(row=sor, column=c+1, value=str(kem).upper())
+                                ws.cell(row=sor, column=c+2, value=int(val))
+                    
+                    # 4. Keretezés: Csak azokat a cellákat keretezzük, ahol adat van
+                    osszes_sor = data_start + len(osszes_termek)
+                    thin = Side(style='thin')
+                    thick = Side(style='thick')
+                    for r in range(kezdo_sor, osszes_sor + 1):
+                        for c in range(1, 16):
+                            is_day_end = (c % 3 == 0)
+                            ws.cell(row=r, column=c).border = Border(left=thin, top=thin, bottom=thin, right=thick if is_day_end else thin)
+                    
+                    return osszes_sor + 2
+    return osszes_sor + 2
+# Adatok begyűjtése
+docs = list(db.collection("naplo").stream())
+kiszedesek, visszarakasok = {}, {}
+for doc in docs:
+adat = doc.to_dict()
+ni = pd.to_datetime(adat['datum']).dayofweek
+if 0 <= ni <= 4:
+sku = adat['sku'].split('_')
+k = (ni, (sku[0]+sku[1]).lower(), sku[2].lower())
+if adat['tipus'] == 'kiszedes': kiszedesek[k] = kiszedesek.get(k, 0) + int(adat.get('darabszam',0))
+else: visszarakasok[k] = visszarakasok.get(k, 0) + int(adat.get('darabszam',0))
 
-if funkcio == "📱 Raktári Kiszedés":
-    st.title("📱 Raktári Mozgás")
-    # (Ide illeszd vissza a saját rádiógombos kiszedő logikádat)
+# Generálás
+hét_szám = datetime.now().strftime("%V. Hét")
+kovetkezo_sor = iras_blokkba(kiszedesek, 1, f"{hét_szám} - KISZEDÉSEK")
+iras_blokkba(visszarakasok, kovetkezo_sor, f"{hét_szám} - VISSZARAKÁSOK")
 
-elif funkcio == "📊 Értékesítő":
-    st.title("📊 Értékesítői Nézet")
-    adatok = get_firebase_data()
-    widths = ["M", "W", "XW", "XXW"]
-    for w in widths:
-        st.subheader(f"📦 {w} szélesség")
-        # (Ide illeszd vissza a saját get_matrix hívásodat)
+# Fájlnév és letöltés
+fajlnev = f"frd_kiszedes_{datetime.now().strftime('%Y_%V')}.xlsx"
+output = BytesIO()
+wb.save(output)
 
-elif funkcio == "🔐 Admin":
-    st.title("🔐 Adminisztráció")
-    if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
-        if st.button("📥 Heti riport generálása"):
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            docs = list(db.collection("naplo").stream())
-            kiszedesek, visszarakasok = {}, {}
-            for doc in docs:
-                adat = doc.to_dict()
-                ni = pd.to_datetime(adat['datum']).dayofweek
-                parts = adat['sku'].split('_')
-                if 0 <= ni <= 4 and len(parts) >= 3:
-                    k = (ni, parts[0]+parts[1], parts[2])
-                    if adat['tipus'] == 'kiszedes': kiszedesek[k] = kiszedesek.get(k, 0) + int(adat.get('darabszam',0))
-                    else: visszarakasok[k] = visszarakasok.get(k, 0) + int(adat.get('darabszam',0))
-            
-            row = iras_blokkba(ws, kiszedesek, 1, "Heti Kiszedések")
-            iras_blokkba(ws, visszarakasok, row, "Heti Visszarakások")
-            
-            output = BytesIO()
-            wb.save(output)
-            st.download_button("📥 Letöltés: Heti Riport", data=output.getvalue(), file_name="heti_riport.xlsx")
+st.download_button(
+label="📥 Letöltés: Heti Riport", 
+data=output.getvalue(), 
+file_name=fajlnev, 
+mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+st.success("Sikeres generálás!")
+except Exception as e:
+st.error(f"Hiba: {e}")
+# --- KÉSZLET SZERKESZTÉSE ---
+st.subheader("📦 Készlet Szerkesztése")
+adatok = get_firebase_data()
+
+for w in widths:
+st.markdown(f"**\"{w}\" szélesség**")
+m_df = pd.DataFrame(0, index=hardnesses, columns=sizes)
+for m in sizes:
+for k in hardnesses:
+m_df.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
+
+# Táblázatos szerkesztő
+edit = st.data_editor(m_df, use_container_width=True, key=f"ed_{w}")
+
+# Mentés gomb
+if st.button(f"💾 Mentés: {w}", key=f"btn_{w}"):
+batch = db.batch()
+for m in sizes:
+for k in hardnesses:
+if int(edit.at[k, m]) != adatok.get(f"{m}_{w}_{k}", 0):
+batch.set(db.collection("keszlet").document(f"{m}_{w}_{k}"), {"mennyiseg": int(edit.at[k, m])})
+batch.commit()
+st.success(f"A(z) {w} szélesség készlete frissítve!")
+st.rerun()
+# ... (készlet szerkesztő rész maradhat ahogy volt)
