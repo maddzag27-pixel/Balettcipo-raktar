@@ -5,7 +5,6 @@ from firebase_admin import credentials, firestore
 from datetime import datetime, timedelta
 from io import BytesIO
 import openpyxl
-from openpyxl.styles import Font, Alignment, Border, Side
 
 # --- KONFIGURÁCIÓ ---
 ADMIN_JELSZO = "admin123"
@@ -38,7 +37,6 @@ def get_matrix(adatok, w):
     for m in sizes:
         for k in hardnesses:
             matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
-    
     osszeg_sor = matrix.sum(axis=0)
     df = matrix.reset_index().rename(columns={"index": "Keménység"})
     df.loc[len(df)] = ["ÖSSZESEN"] + list(osszeg_sor)
@@ -47,41 +45,44 @@ def get_matrix(adatok, w):
     return df
 
 def szinezo(row):
-    szinek = {
-        "LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", 
-        "SUP": "#E0E0E0", "REG": "#FFC000", "FRM": "#CD7F32", 
-        "STR": "#4682B4", "XFR": "#A6A6A6", "XST": "#CC0000"
-    }
-    if row["Keménység"] == "ÖSSZESEN": 
-        return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
-    color = szinek.get(row["Keménység"], "#FFFFFF")
-    return [f'background-color: {color}'] * len(row)
+    szinek = {"LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", "SUP": "#E0E0E0", "REG": "#FFC000", "FRM": "#CD7F32", "STR": "#4682B4", "XFR": "#A6A6A6", "XST": "#CC0000"}
+    if row["Keménység"] == "ÖSSZESEN": return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
+    return [f'background-color: {szinek.get(row["Keménység"], "#FFFFFF")}'] * len(row)
 
-# --- RIPORT GENERÁLÁS (SABLON ALAPJÁN) ---
+# --- RIPORT GENERÁLÁS ---
 def generate_weekly_report(year, week):
+    # Dátumok számítása
+    jan4 = datetime(year, 1, 4)
+    start_date = jan4 + timedelta(days=(week - 1) * 7 - jan4.weekday())
+    
+    # Adatok lekérése a naplóból
+    naplo_docs = db.collection("naplo").where("datum", ">=", start_date.strftime("%Y-%m-%d")).limit(500).stream()
+    adatok = [d.to_dict() for d in naplo_docs]
+
+    # Sablon betöltése
     try:
         wb = openpyxl.load_workbook("template.xlsx")
     except:
         wb = openpyxl.Workbook()
     
     ws = wb.active
-    ws.title = "FRD kiszedés"
     
-    # Dátum és hét beírása a sablonba
-    ws.cell(row=1, column=13, value=week) # Hét száma a sablon szerint
-    ws.cell(row=2, column=1, value=f"{year} - Heti riport")
+    # Hét száma a megfelelő helyre (O1 cella a korábbi logika alapján, vagy 13-as oszlop)
+    ws.cell(row=1, column=13, value=week)
     
-    # Itt történik a naplózott adatok lekérdezése és a sablon kitöltése
-    # ... adatlekérdezés a 'naplo' kollekcióból ...
+    # Adatok kitöltése a táblázatba (példa struktúra a template alapján)
+    for idx, sor in enumerate(adatok[:30]): # Csak az első 30 sor
+        row_idx = 4 + idx
+        ws.cell(row=row_idx, column=1, value=sor.get("sku", ""))
+        ws.cell(row=row_idx, column=3, value=sor.get("darabszam", 0))
     
     buffer = BytesIO()
     wb.save(buffer)
     return buffer.getvalue()
 
-# --- NAVIGÁCIÓ ---
+# --- APP LOGIKA ---
 funkcio = st.sidebar.radio("Válassz felületet:", ["📱 Raktári Kiszedés", "📊 Értékesítő", "🔐 Admin"], key="nav")
 
-# --- RAKTÁRI KISZEDÉS ---
 if funkcio == "📱 Raktári Kiszedés":
     st.title("📱 Raktári Mozgás")
     adatok = get_firebase_data()
@@ -108,14 +109,11 @@ if funkcio == "📱 Raktári Kiszedés":
     ev_in = ev.number_input("Év", value=datetime.now().year)
     het_in = het.number_input("Hét", value=datetime.now().isocalendar()[1])
     if st.button("Riport készítése"):
-        excel_data = generate_weekly_report(ev_in, het_in)
-        st.download_button("📥 Letöltés (Excel)", excel_data, f"heti_riport_{ev_in}_W{het_in}.xlsx")
+        st.download_button("📥 Letöltés (Excel)", generate_weekly_report(ev_in, het_in), "heti_riport.xlsx")
 
-# --- ÉRTÉKESÍTŐ ---
 elif funkcio == "📊 Értékesítő":
     st.title("📊 Értékesítői Nézet")
     adatok = get_firebase_data()
-    
     if st.button("📥 Összes leltár exportálása"):
         buffer = BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
@@ -130,7 +128,6 @@ elif funkcio == "📊 Értékesítő":
         df = get_matrix(adatok, w).replace(0, "")
         st.dataframe(df.style.apply(szinezo, axis=1), use_container_width=True)
 
-# --- ADMIN ---
 elif funkcio == "🔐 Admin":
     st.title("🔐 Adminisztráció")
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
@@ -138,10 +135,4 @@ elif funkcio == "🔐 Admin":
         for w in ["M", "W", "XW", "XXW"]:
             with st.expander(f"📦 {w} szélesség"):
                 st.dataframe(get_matrix(adatok, w).replace(0, ""), use_container_width=True)
-        st.divider()
-        sku = st.selectbox("SKU:", [f"{m}_{w}_{k}" for m in range(5,15) for w in ["M","W","XW","XXW"] for k in ["LGH","SFT","FLX","SUP","REG","FRM","STR","XFR","XST"]])
-        uj = st.number_input("Új érték:", value=0)
-        if st.button("Mentés"):
-            db.collection("keszlet").document(sku).set({"mennyiseg": uj}, merge=True)
-            st.rerun()
     else: st.warning("Add meg a jelszót!")
