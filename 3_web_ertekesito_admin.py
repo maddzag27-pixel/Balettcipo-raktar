@@ -230,7 +230,7 @@ elif funkcio == "🔐 Admin":
                 center = Alignment(horizontal="center", vertical="center")
 
                 def iras_blokkba(adat_szotar, kezdo_sor, cim):
-                    # 1. Fejlécek (Ez nem változik)
+                    # 1. Fejlécek
                     ws.merge_cells(start_row=kezdo_sor, start_column=1, end_row=kezdo_sor, end_column=15)
                     ws.cell(row=kezdo_sor, column=1, value=cim).font = Font(bold=True, size=14)
                     
@@ -241,28 +241,36 @@ elif funkcio == "🔐 Admin":
                         ws.cell(kezdo_sor+1, c, nap).font = Font(bold=True)
                         ws.cell(kezdo_sor+2, c, "MÉRET"); ws.cell(kezdo_sor+2, c+1, "KEM."); ws.cell(kezdo_sor+2, c+2, "DB")
 
-                    # 2. A kulcs: Összegyűjtjük az ÖSSZES terméket, ami a héten valaha előfordult
-                    kulcsok = list(adat_szotar.keys())
-                    osszes_termek = sorted(list(set((k[1], k[2]) for k in kulcsok)))
+                    # 2. BIZTONSÁGOS TERMÉKLISTA GYŰJTÉS
+                    # Megnézzük a kulcsokat, és kiszedjük belőlük a 2. és 3. elemet (index 1 és 2)
+                    termek_halmaz = set()
+                    for k in adat_szotar.keys():
+                        if isinstance(k, tuple) and len(k) >= 3:
+                            termek_halmaz.add((k[1], k[2]))
                     
-                    # 3. KÉZI ÍRÁS - Minden termék egy fix sorba kerül
+                    osszes_termek = sorted(list(termek_halmaz))
+                    
+                    # 3. KÉZI ÍRÁS
                     for i, (msz, kem) in enumerate(osszes_termek):
                         row = kezdo_sor + 3 + i
                         for nap_idx in range(5):
                             col = nap_idx * 3 + 1
+                            # Lekérjük az értéket: tuple-t keresünk (nap, msz, kem)
                             val = adat_szotar.get((nap_idx, msz, kem), 0)
                             
-                            # ITT A TRÜKK: Mindig kiírjuk a MÉRET/KEM-et, hogy ne csússzon
+                            # Kiírás
                             ws.cell(row=row, column=col, value=msz.upper())
                             ws.cell(row=row, column=col+1, value=kem.upper())
-                            ws.cell(row=row, column=col+2, value=int(val) if val > 0 else "")
+                            ws.cell(row=row, column=col+2, value=val if val > 0 else "")
                     
-                    # 4. Összegzés (Fix sorban)
+                    # 4. ÖSSZESÍTÉS
                     osszes_sor = kezdo_sor + 3 + len(osszes_termek)
                     for nap_idx in range(5):
                         col = nap_idx * 3 + 3
-                        # Az összegzés az összes sorra vonatkozik, fixen
-                        ws.cell(row=osszes_sor, column=col, value=f"=SUM({ws.cell(kezdo_sor+3, col).coordinate}:{ws.cell(osszes_sor-1, col).coordinate})")
+                        # Az összegzés képlete
+                        start_cell = ws.cell(row=kezdo_sor+3, column=col).coordinate
+                        end_cell = ws.cell(row=osszes_sor-1, column=col).coordinate
+                        ws.cell(row=osszes_sor, column=col, value=f"=SUM({start_cell}:{end_cell})").font = Font(bold=True)
                     
                     return osszes_sor + 2
                 # Adatok begyűjtése
