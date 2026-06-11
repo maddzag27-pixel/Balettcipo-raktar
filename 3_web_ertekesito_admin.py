@@ -47,7 +47,7 @@ def get_matrix(adatok, w):
     df = matrix.reset_index().rename(columns={"index": "Keménység"})
     
     # 4. Keménység oszlop megduplázása a 14-es méret után
-    df["Keménység_Másolat"] = df["Keménység"]
+    df["Keménység"] = df["Keménység"]
     
     # 5. Végső összesítő sor hozzáadása
     osszeg_sor_row = ["ÖSSZESEN"] + list(osszeg_sor) + [vegs_osszeg]
