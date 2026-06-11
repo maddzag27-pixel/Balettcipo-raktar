@@ -2,10 +2,10 @@ import streamlit as st
 import pandas as pd
 import firebase_admin
 from firebase_admin import credentials, firestore
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 import openpyxl
-from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from openpyxl.styles import Font, Alignment, Border, Side
 
 # --- KONFIGURÁCIÓ ---
 ADMIN_JELSZO = "admin123"
@@ -26,12 +26,8 @@ db = get_db()
 
 # --- SEGÉDFÜGGVÉNYEK ---
 def get_firebase_data():
-    try:
-        docs = db.collection("keszlet").stream()
-        return {doc.id: int(doc.to_dict().get("mennyiseg", 0)) for doc in docs}
-    except Exception as e:
-        st.error(f"Hiba: {e}")
-        return {}
+    docs = db.collection("keszlet").stream()
+    return {doc.id: int(doc.to_dict().get("mennyiseg", 0)) for doc in docs}
 
 def get_matrix(adatok, w):
     sizes = [str(i) for i in range(5, 15)]
@@ -40,7 +36,6 @@ def get_matrix(adatok, w):
     for m in sizes:
         for k in hardnesses:
             matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
-    
     osszeg_sor = matrix.sum(axis=0)
     df = matrix.reset_index().rename(columns={"index": "Keménység"})
     df.loc[len(df)] = ["ÖSSZESEN"] + list(osszeg_sor)
@@ -48,37 +43,27 @@ def get_matrix(adatok, w):
     return df
 
 def szinezo(row):
-    szinek = {
-        "LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", 
-        "SUP": "#E0E0E0", "REG": "#FFC000", "FRM": "#CD7F32", 
-        "STR": "#4682B4", "XFR": "#A6A6A6", "XST": "#CC0000"
-    }
-    if row["Keménység"] == "ÖSSZESEN": 
-        return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
+    szinek = {"LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", "SUP": "#E0E0E0", "REG": "#FFC000", "FRM": "#CD7F32", "STR": "#4682B4", "XFR": "#A6A6A6", "XST": "#CC0000"}
+    if row["Keménység"] == "ÖSSZESEN": return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
     color = szinek.get(row["Keménység"], "#FFFFFF")
     return [f'background-color: {color}'] * len(row)
 
-def iras_blokkba(ws, adat_szotar, kezdo_sor, cim):
-    ws.merge_cells(start_row=kezdo_sor, start_column=1, end_row=kezdo_sor, end_column=15)
-    ws.cell(row=kezdo_sor, column=1, value=cim).font = Font(bold=True, size=14)
-    # Formázott riport írása
-    napok = ["Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek"]
-    for i, nap in enumerate(napok):
-        ws.cell(row=kezdo_sor+1, column=3+i, value=nap).font = Font(bold=True)
-    
-    termekek = sorted({(k[1], k[2]) for k in adat_szotar.keys()})
-    for i, (msz, kem) in enumerate(termekek):
-        row = kezdo_sor + 2 + i
-        ws.cell(row=row, column=1, value=msz)
-        ws.cell(row=row, column=2, value=kem)
-        for nap in range(5):
-            val = adat_szotar.get((nap, msz, kem), "")
-            ws.cell(row=row, column=3+nap, value=val if val != 0 else "")
-    return kezdo_sor + len(termekek) + 4
+# --- RIPORT GENERÁLÁS ---
+def generate_weekly_report(year, week):
+    # Itt kellene a template.xlsx alapú bonyolultabb logika
+    # Jelenleg egy alap struktúrát hoz létre, amit este bővíthetünk
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "FRD kiszedés"
+    ws.cell(row=1, column=1, value=f"Riport: {year}. év {week}. hét")
+    buffer = BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()
 
-# --- APP LOGIKA ---
+# --- NAVIGÁCIÓ ---
 funkcio = st.sidebar.radio("Válassz felületet:", ["📱 Raktári Kiszedés", "📊 Értékesítő", "🔐 Admin"], key="nav")
 
+# --- RAKTÁRI KISZEDÉS OLDAL ---
 if funkcio == "📱 Raktári Kiszedés":
     st.title("📱 Raktári Mozgás")
     adatok = get_firebase_data()
@@ -99,10 +84,19 @@ if funkcio == "📱 Raktári Kiszedés":
         db.collection("naplo").add({"datum": datetime.now().strftime("%Y-%m-%d"), "sku": sku, "tipus": "visszarakas", "darabszam": 1})
         st.rerun()
 
+    st.divider()
+    st.subheader("📥 Heti riport generálása")
+    e_col, h_col = st.columns(2)
+    ev_input = e_col.number_input("Év", value=datetime.now().year)
+    het_input = h_col.number_input("Hét", value=datetime.now().isocalendar()[1])
+    if st.button("Riport készítése"):
+        st.download_button("📥 Letöltés (Excel)", generate_weekly_report(ev_input, het_input), "heti_riport.xlsx")
+
+# --- ÉRTÉKESÍTŐI NÉZET ---
 elif funkcio == "📊 Értékesítő":
     st.title("📊 Értékesítői Nézet")
     adatok = get_firebase_data()
-    if st.button("📥 Exportálás"):
+    if st.button("📥 Összes exportálása"):
         buffer = BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             row = 0
@@ -116,6 +110,7 @@ elif funkcio == "📊 Értékesítő":
         df = get_matrix(adatok, w).replace(0, "")
         st.dataframe(df.style.apply(szinezo, axis=1), use_container_width=True)
 
+# --- ADMIN OLDAL ---
 elif funkcio == "🔐 Admin":
     st.title("🔐 Adminisztráció")
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
@@ -125,24 +120,11 @@ elif funkcio == "🔐 Admin":
         if st.button("Mentés"):
             db.collection("keszlet").document(sku).set({"mennyiseg": uj}, merge=True)
             st.rerun()
-        
+            
         st.divider()
-        st.subheader("📥 Heti riport generálása")
-        if st.button("Riport készítése"):
-            wb = openpyxl.Workbook(); ws = wb.active
-            docs = list(db.collection("naplo").stream())
-            kiszedesek, visszarakasok = {}, {}
-            for doc in docs:
-                adat = doc.to_dict()
-                dt = datetime.strptime(adat['datum'], "%Y-%m-%d")
-                nap = dt.weekday()
-                if nap < 5:
-                    key = (nap, adat['sku'].split('_')[0]+adat['sku'].split('_')[1], adat['sku'].split('_')[2])
-                    if adat['tipus'] == 'kiszedes': kiszedesek[key] = kiszedesek.get(key, 0) + 1
-                    else: visszarakasok[key] = visszarakasok.get(key, 0) + 1
-            row = iras_blokkba(ws, kiszedesek, 1, "Heti Kiszedések")
-            iras_blokkba(ws, visszarakasok, row, "Heti Visszarakások")
-            out = BytesIO(); wb.save(out)
-            st.download_button("📥 Letöltés", out.getvalue(), "heti_riport.xlsx")
+        st.subheader("📅 Napi napló")
+        naplo_docs = db.collection("naplo").where("datum", "==", datetime.now().strftime("%Y-%m-%d")).stream()
+        naplo_adatok = [d.to_dict() for d in naplo_docs]
+        if naplo_adatok: st.table(pd.DataFrame(naplo_adatok))
     else:
         st.warning("Add meg a jelszót!")
