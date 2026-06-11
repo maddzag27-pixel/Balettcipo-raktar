@@ -25,8 +25,10 @@ db = get_db()
 
 # --- SEGÉDFÜGGVÉNYEK ---
 def get_firebase_data():
-    docs = db.collection("keszlet").stream()
-    return {doc.id: int(doc.to_dict().get("mennyiseg", 0)) for doc in docs}
+    try:
+        docs = db.collection("keszlet").stream()
+        return {doc.id: int(doc.to_dict().get("mennyiseg", 0)) for doc in docs}
+    except: return {}
 
 def get_matrix(adatok, w):
     sizes = [str(i) for i in range(5, 15)]
@@ -41,12 +43,25 @@ def get_matrix(adatok, w):
     df["Keménység_Jobb"] = df["Keménység"]
     return df
 
+def szinezo(row):
+    szinek = {
+        "LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", 
+        "SUP": "#E0E0E0", "REG": "#FFC000", "FRM": "#CD7F32", 
+        "STR": "#4682B4", "XFR": "#A6A6A6", "XST": "#CC0000"
+    }
+    if row["Keménység"] == "ÖSSZESEN": 
+        return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
+    color = szinek.get(row["Keménység"], "#FFFFFF")
+    return [f'background-color: {color}'] * len(row)
+
+# --- RIPORT GENERÁLÁS (Sablon alapú) ---
 def generate_weekly_report(year, week):
-    # Itt fogjuk később implementálni a template alapú logikát
+    # Itt fogjuk este a teljes logikát (copyCellStyleAndLayout) visszaépíteni
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "FRD kiszedés"
-    ws.cell(row=1, column=1, value=f"Riport: {year}. év {week}. hét")
+    ws.cell(row=1, column=1, value=f"Riport: {year}. év, {week}. hét")
+    # A későbbiekben ide jön a pontos cella-logikád
     buffer = BytesIO()
     wb.save(buffer)
     return buffer.getvalue()
@@ -54,7 +69,7 @@ def generate_weekly_report(year, week):
 # --- NAVIGÁCIÓ ---
 funkcio = st.sidebar.radio("Válassz felületet:", ["📱 Raktári Kiszedés", "📊 Értékesítő", "🔐 Admin"], key="nav")
 
-# --- RAKTÁRI KISZEDÉS OLDAL ---
+# --- RAKTÁRI KISZEDÉS ---
 if funkcio == "📱 Raktári Kiszedés":
     st.title("📱 Raktári Mozgás")
     adatok = get_firebase_data()
@@ -76,37 +91,34 @@ if funkcio == "📱 Raktári Kiszedés":
         st.rerun()
 
     st.divider()
-    st.subheader("📥 Heti riport generálása")
-    e_col, h_col = st.columns(2)
-    ev_input = e_col.number_input("Év", value=datetime.now().year)
-    het_input = h_col.number_input("Hét", value=datetime.now().isocalendar()[1])
-    if st.button("Riport készítése"):
-        st.download_button("📥 Letöltés (Excel)", generate_weekly_report(ev_input, het_input), "heti_riport.xlsx")
+    st.subheader("📥 Heti riport")
+    ev, het = st.columns(2)
+    ev_in = ev.number_input("Év", value=datetime.now().year)
+    het_in = het.number_input("Hét", value=datetime.now().isocalendar()[1])
+    if st.button("Riport generálása"):
+        st.download_button("📥 Letöltés (Excel)", generate_weekly_report(ev_in, het_in), "heti_riport.xlsx")
 
-# --- ÉRTÉKESÍTŐI NÉZET ---
+# --- ÉRTÉKESÍTŐ ---
 elif funkcio == "📊 Értékesítő":
     st.title("📊 Értékesítői Nézet")
     adatok = get_firebase_data()
     for w in ["M", "W", "XW", "XXW"]:
         st.subheader(f"📦 {w} szélesség")
         df = get_matrix(adatok, w).replace(0, "")
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df.style.apply(szinezo, axis=1), use_container_width=True)
 
-# --- ADMIN OLDAL ---
+# --- ADMIN ---
 elif funkcio == "🔐 Admin":
     st.title("🔐 Adminisztráció")
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
-        st.subheader("🛠 Készlet áttekintése és módosítása")
         adatok = get_firebase_data()
         for w in ["M", "W", "XW", "XXW"]:
             with st.expander(f"📦 {w} szélesség"):
                 st.dataframe(get_matrix(adatok, w).replace(0, ""), use_container_width=True)
-        
         st.divider()
         sku = st.selectbox("SKU:", [f"{m}_{w}_{k}" for m in range(5,15) for w in ["M","W","XW","XXW"] for k in ["LGH","SFT","FLX","SUP","REG","FRM","STR","XFR","XST"]])
         uj = st.number_input("Új érték:", value=0)
         if st.button("Mentés"):
             db.collection("keszlet").document(sku).set({"mennyiseg": uj}, merge=True)
             st.rerun()
-    else:
-        st.warning("Add meg a jelszót!")
+    else: st.warning("Add meg a jelszót!")
