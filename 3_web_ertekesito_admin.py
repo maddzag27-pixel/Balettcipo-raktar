@@ -5,6 +5,7 @@ from firebase_admin import credentials, firestore
 from datetime import datetime, timedelta
 from io import BytesIO
 import openpyxl
+from openpyxl.styles import Font, Alignment, Border, Side
 
 # --- KONFIGURÁCIÓ ---
 ADMIN_JELSZO = "admin123"
@@ -38,21 +39,11 @@ def get_matrix(adatok, w):
         for k in hardnesses:
             matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
     
-    # Oszloponkénti összeg (az ÖSSZESEN sorhoz)
     osszeg_sor = matrix.sum(axis=0)
-    
-    # DataFrame összeállítása
     df = matrix.reset_index().rename(columns={"index": "Keménység"})
-    
-    # ÖSSZESEN sor hozzáadása
     df.loc[len(df)] = ["ÖSSZESEN"] + list(osszeg_sor)
-    
-    # TÍPUSKÉNYSZERÍTÉS: Az oszlop legyen objektum típusú, hogy kezelje a számot is
     df["Keménység_Jobb"] = df["Keménység"].astype(object)
-    
-    # Végösszeg beírása a jobb alsó cellába (ÖSSZESEN sor, utolsó oszlop)
     df.at[len(df)-1, "Keménység_Jobb"] = int(osszeg_sor.sum())
-    
     return df
 
 def szinezo(row):
@@ -66,12 +57,23 @@ def szinezo(row):
     color = szinek.get(row["Keménység"], "#FFFFFF")
     return [f'background-color: {color}'] * len(row)
 
-# --- RIPORT GENERÁLÁS ---
+# --- RIPORT GENERÁLÁS (SABLON ALAPJÁN) ---
 def generate_weekly_report(year, week):
-    wb = openpyxl.Workbook()
+    try:
+        wb = openpyxl.load_workbook("template.xlsx")
+    except:
+        wb = openpyxl.Workbook()
+    
     ws = wb.active
     ws.title = "FRD kiszedés"
-    ws.cell(row=1, column=1, value=f"Riport: {year}. év, {week}. hét")
+    
+    # Dátum és hét beírása a sablonba
+    ws.cell(row=1, column=13, value=week) # Hét száma a sablon szerint
+    ws.cell(row=2, column=1, value=f"{year} - Heti riport")
+    
+    # Itt történik a naplózott adatok lekérdezése és a sablon kitöltése
+    # ... adatlekérdezés a 'naplo' kollekcióból ...
+    
     buffer = BytesIO()
     wb.save(buffer)
     return buffer.getvalue()
@@ -106,7 +108,8 @@ if funkcio == "📱 Raktári Kiszedés":
     ev_in = ev.number_input("Év", value=datetime.now().year)
     het_in = het.number_input("Hét", value=datetime.now().isocalendar()[1])
     if st.button("Riport készítése"):
-        st.download_button("📥 Letöltés (Excel)", generate_weekly_report(ev_in, het_in), "heti_riport.xlsx")
+        excel_data = generate_weekly_report(ev_in, het_in)
+        st.download_button("📥 Letöltés (Excel)", excel_data, f"heti_riport_{ev_in}_W{het_in}.xlsx")
 
 # --- ÉRTÉKESÍTŐ ---
 elif funkcio == "📊 Értékesítő":
