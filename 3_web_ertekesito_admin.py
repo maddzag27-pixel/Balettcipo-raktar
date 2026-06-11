@@ -32,24 +32,28 @@ def get_matrix(adatok, w):
     sizes = [str(i) for i in range(5, 15)]
     hardnesses = ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"]
     
-    # 1. Alap mátrix: sorok = keménységek, oszlopok = méretek
+    # 1. Alap mátrix (sorok: keménységek, oszlopok: méretek)
     matrix = pd.DataFrame(0, index=hardnesses, columns=sizes)
     for m in sizes:
         for k in hardnesses:
             matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
     
-    # 2. Oszloponkénti összesítés (a mátrix alá)
+    # 2. Oszloponkénti összesítés az utolsó sorba
     osszeg_sor = matrix.sum(axis=0)
-    osszeg_sor.name = "ÖSSZESEN"
+    # A jobb alsó sarok a teljes készlet (összes méret összege)
+    vegs_osszeg = osszeg_sor.sum()
     
-    # 3. Mátrix és az összesítő sor egyesítése
-    df = pd.concat([matrix, pd.DataFrame([osszeg_sor])])
+    # 3. Mátrix kiegészítése az utolsó sorral
+    df = matrix.reset_index().rename(columns={"index": "Keménység"})
     
-    # 4. A keménységeket tartalmazó indexet oszloppá alakítjuk
-    df = df.reset_index().rename(columns={"index": "Keménység"})
+    # 4. Keménység oszlop megduplázása a 14-es méret után
+    df["Keménység_Másolat"] = df["Keménység"]
+    
+    # 5. Végső összesítő sor hozzáadása
+    osszeg_sor_row = ["ÖSSZESEN"] + list(osszeg_sor) + [vegs_osszeg]
+    df.loc[len(df)] = osszeg_sor_row
     
     return df
-
 def szinezo(row):
     color = {"LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", "SUP": "#E0E0E0", "REG": "#FFC000", "FRM": "#CD7F32", "STR": "#4682B4", "XFR": "#A6A6A6", "XST": "#CC0000"}.get(row["Keménység"], "#FFFFFF")
     if row["Keménység"] == "ÖSSZESEN": return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
