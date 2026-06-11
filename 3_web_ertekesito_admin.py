@@ -37,10 +37,18 @@ def get_matrix(adatok, w):
     for m in sizes:
         for k in hardnesses:
             matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
+    
+    # Soronkénti összeg (jobb szélre)
+    matrix["ÖSSZESEN"] = matrix.sum(axis=1)
+    
+    # Oszloponkénti összeg (az ÖSSZESEN sorba)
     osszeg_sor = matrix.sum(axis=0)
+    
     df = matrix.reset_index().rename(columns={"index": "Keménység"})
+    
+    # A legutolsó sor felülírása a kiszámolt oszlop-összegekkel
     df.loc[len(df)] = ["ÖSSZESEN"] + list(osszeg_sor)
-    df["Keménység_Jobb"] = df["Keménység"]
+    
     return df
 
 def szinezo(row):
@@ -93,7 +101,7 @@ if funkcio == "📱 Raktári Kiszedés":
     ev, het = st.columns(2)
     ev_in = ev.number_input("Év", value=datetime.now().year)
     het_in = het.number_input("Hét", value=datetime.now().isocalendar()[1])
-    if st.button("Riport generálása"):
+    if st.button("Riport készítése"):
         st.download_button("📥 Letöltés (Excel)", generate_weekly_report(ev_in, het_in), "heti_riport.xlsx")
 
 # --- ÉRTÉKESÍTŐ ---
@@ -101,14 +109,13 @@ elif funkcio == "📊 Értékesítő":
     st.title("📊 Értékesítői Nézet")
     adatok = get_firebase_data()
     
-    # Letöltés gomb visszaállítva!
     if st.button("📥 Összes leltár exportálása"):
         buffer = BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             row = 0
             for w in ["M", "W", "XW", "XXW"]:
                 get_matrix(adatok, w).replace(0, "").to_excel(writer, sheet_name="Keszlet", startrow=row, index=False)
-                row += 15
+                row += 20
         st.download_button("✅ Letöltés (Excel)", buffer.getvalue(), "Leltar_Osszes.xlsx")
     
     for w in ["M", "W", "XW", "XXW"]:
