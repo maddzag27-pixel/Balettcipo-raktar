@@ -37,7 +37,6 @@ def get_matrix(adatok, w):
     for m in sizes:
         for k in hardnesses:
             matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
-    
     osszeg_sor = matrix.sum(axis=0)
     df = matrix.reset_index().rename(columns={"index": "Keménység"})
     df.loc[len(df)] = ["ÖSSZESEN"] + list(osszeg_sor)
@@ -46,58 +45,47 @@ def get_matrix(adatok, w):
     return df
 
 def szinezo(row):
-    szinek = {
-        "LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", 
-        "SUP": "#E0E0E0", "REG": "#FFC000", "FRM": "#CD7F32", 
-        "STR": "#4682B4", "XFR": "#A6A6A6", "XST": "#CC0000"
-    }
-    if row["Keménység"] == "ÖSSZESEN": 
-        return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
-    color = szinek.get(row["Keménység"], "#FFFFFF")
-    return [f'background-color: {color}'] * len(row)
+    szinek = {"LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", "SUP": "#E0E0E0", "REG": "#FFC000", "FRM": "#CD7F32", "STR": "#4682B4", "XFR": "#A6A6A6", "XST": "#CC0000"}
+    if row["Keménység"] == "ÖSSZESEN": return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
+    return [f'background-color: {szinek.get(row["Keménység"], "#FFFFFF")}'] * len(row)
 
-# --- RIPORT GENERÁLÁS (JAVÍTOTT SABLONLOGIKA) ---
+# --- RIPORT GENERÁLÁS ---
 def generate_weekly_report(year, week):
-    # Dátumok számítása
     jan4 = datetime(year, 1, 4)
     start_date = jan4 + timedelta(days=(week - 1) * 7 - jan4.weekday())
     
-    # Python oldali szűrés az indexhiba elkerülésére
+    # Adatok lekérése Python oldali szűréssel
     naplo_docs = db.collection("naplo").where("datum", ">=", start_date.strftime("%Y-%m-%d")).stream()
-    adatok = [d.to_dict() for d in naplo_docs if d.get("tipus") == "kiszedes"]
+    adatok = [d.to_dict() for d in naplo_docs]
 
-    # Sablon betöltése
-    try:
-        wb = openpyxl.load_workbook("template.xlsx")
-    except:
-        wb = openpyxl.Workbook()
-    
+    wb = openpyxl.load_workbook("template.xlsx")
     ws = wb.active
     
-    # Fejléc beírása
-    ws['M1'] = "Hét #"
-    ws['O1'] = week
+    ws['O1'] = week # Hét sorszáma
     
-    # Adatok beírása: Méret (oszlop 1), Keménység (oszlop 2), Mennyiség (oszlop 3)
-    # A sablon szerint a 4. sortól indulnak az adatok
-    for idx, sor in enumerate(adatok[:30]):
-        row_idx = 4 + idx
-        sku_parts = sor.get("sku", "").split("_")
-        meret = f"{sku_parts[0]}{sku_parts[1]}" if len(sku_parts) > 1 else ""
-        kemenyseg = sku_parts[2] if len(sku_parts) > 2 else ""
+    # Napok és típusok leképezése (minden naphoz 3 oszlop)
+    # A minta alapján a napok oszlopait kell számolni (1-3, 4-6, 7-9, 10-12, 13-15)
+    for sor in adatok:
+        datum_obj = datetime.strptime(sor.get("datum"), "%Y-%m-%d")
+        nap_index = datum_obj.weekday() # 0 = Hétfő ... 6 = Vasárnap
+        col_offset = nap_index * 3 + 1
         
-        ws.cell(row=row_idx, column=1, value=meret)
-        ws.cell(row=row_idx, column=2, value=kemenyseg)
-        ws.cell(row=row_idx, column=3, value=sor.get("darabszam", 0))
+        # Találjunk egy üres sort a napon belül (4-től 33-ig a kiszedés blokk)
+        for r in range(4, 34):
+            if ws.cell(row=r, column=col_offset).value is None:
+                sku_parts = sor.get("sku", "").split("_")
+                ws.cell(row=r, column=col_offset, value=f"{sku_parts[0]}{sku_parts[1]}")
+                ws.cell(row=r, column=col_offset+1, value=sku_parts[2])
+                ws.cell(row=r, column=col_offset+2, value=sor.get("darabszam", 0))
+                break
     
     buffer = BytesIO()
     wb.save(buffer)
     return buffer.getvalue()
 
-# --- NAVIGÁCIÓ ---
+# --- APP LOGIKA ---
 funkcio = st.sidebar.radio("Válassz felületet:", ["📱 Raktári Kiszedés", "📊 Értékesítő", "🔐 Admin"], key="nav")
 
-# --- RAKTÁRI KISZEDÉS ---
 if funkcio == "📱 Raktári Kiszedés":
     st.title("📱 Raktári Mozgás")
     adatok = get_firebase_data()
@@ -126,11 +114,9 @@ if funkcio == "📱 Raktári Kiszedés":
     if st.button("Riport készítése"):
         st.download_button("📥 Letöltés (Excel)", generate_weekly_report(ev_in, het_in), f"heti_riport_{ev_in}_W{het_in}.xlsx")
 
-# --- ÉRTÉKESÍTŐ ---
 elif funkcio == "📊 Értékesítő":
     st.title("📊 Értékesítői Nézet")
     adatok = get_firebase_data()
-    
     if st.button("📥 Összes leltár exportálása"):
         buffer = BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
@@ -145,7 +131,6 @@ elif funkcio == "📊 Értékesítő":
         df = get_matrix(adatok, w).replace(0, "")
         st.dataframe(df.style.apply(szinezo, axis=1), use_container_width=True)
 
-# --- ADMIN ---
 elif funkcio == "🔐 Admin":
     st.title("🔐 Adminisztráció")
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
@@ -153,10 +138,4 @@ elif funkcio == "🔐 Admin":
         for w in ["M", "W", "XW", "XXW"]:
             with st.expander(f"📦 {w} szélesség"):
                 st.dataframe(get_matrix(adatok, w).replace(0, ""), use_container_width=True)
-        st.divider()
-        sku = st.selectbox("SKU:", [f"{m}_{w}_{k}" for m in range(5,15) for w in ["M","W","XW","XXW"] for k in ["LGH","SFT","FLX","SUP","REG","FRM","STR","XFR","XST"]])
-        uj = st.number_input("Új érték:", value=0)
-        if st.button("Mentés"):
-            db.collection("keszlet").document(sku).set({"mennyiseg": uj}, merge=True)
-            st.rerun()
     else: st.warning("Add meg a jelszót!")
