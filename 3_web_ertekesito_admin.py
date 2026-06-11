@@ -49,31 +49,34 @@ def szinezo(row):
     if row["Keménység"] == "ÖSSZESEN": return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
     return [f'background-color: {szinek.get(row["Keménység"], "#FFFFFF")}'] * len(row)
 
-# --- RIPORT GENERÁLÁS ---
+# --- RIPORT GENERÁLÁS (JAVÍTOTT LOGIKA) ---
 def generate_weekly_report(year, week):
-    # Dátumok számítása
+    # Hétfői dátum számítása
     jan4 = datetime(year, 1, 4)
     start_date = jan4 + timedelta(days=(week - 1) * 7 - jan4.weekday())
     
-    # Adatok lekérése a naplóból
-    naplo_docs = db.collection("naplo").where("datum", ">=", start_date.strftime("%Y-%m-%d")).limit(500).stream()
+    # Adatok lekérése (csak kiszedések)
+    naplo_docs = db.collection("naplo").where("datum", ">=", start_date.strftime("%Y-%m-%d")) \
+                                       .where("tipus", "==", "kiszedes").stream()
     adatok = [d.to_dict() for d in naplo_docs]
 
-    # Sablon betöltése
-    try:
-        wb = openpyxl.load_workbook("template.xlsx")
-    except:
-        wb = openpyxl.Workbook()
-    
+    wb = openpyxl.load_workbook("template.xlsx")
     ws = wb.active
     
-    # Hét száma a megfelelő helyre (O1 cella a korábbi logika alapján, vagy 13-as oszlop)
-    ws.cell(row=1, column=13, value=week)
+    # Fejléc: M1 = Hét#, O1 = Hetiszám
+    ws['M1'] = "Hét #"
+    ws['O1'] = week
     
-    # Adatok kitöltése a táblázatba (példa struktúra a template alapján)
-    for idx, sor in enumerate(adatok[:30]): # Csak az első 30 sor
+    # Adatok beírása: 3 oszlopos blokkok (Méret, Keménység, Mennyiség)
+    # A template alapján az adatok a 4. sortól kezdődnek
+    for idx, sor in enumerate(adatok[:30]):
         row_idx = 4 + idx
-        ws.cell(row=row_idx, column=1, value=sor.get("sku", ""))
+        sku_parts = sor.get("sku", "").split("_") # pl: 8_M_XST
+        meret = f"{sku_parts[0]}{sku_parts[1]}" if len(sku_parts) > 1 else ""
+        kemenyseg = sku_parts[2] if len(sku_parts) > 2 else ""
+        
+        ws.cell(row=row_idx, column=1, value=meret)
+        ws.cell(row=row_idx, column=2, value=kemenyseg)
         ws.cell(row=row_idx, column=3, value=sor.get("darabszam", 0))
     
     buffer = BytesIO()
@@ -109,7 +112,8 @@ if funkcio == "📱 Raktári Kiszedés":
     ev_in = ev.number_input("Év", value=datetime.now().year)
     het_in = het.number_input("Hét", value=datetime.now().isocalendar()[1])
     if st.button("Riport készítése"):
-        st.download_button("📥 Letöltés (Excel)", generate_weekly_report(ev_in, het_in), "heti_riport.xlsx")
+        excel_data = generate_weekly_report(ev_in, het_in)
+        st.download_button("📥 Letöltés (Excel)", excel_data, f"heti_riport_{ev_in}_W{het_in}.xlsx")
 
 elif funkcio == "📊 Értékesítő":
     st.title("📊 Értékesítői Nézet")
@@ -122,7 +126,6 @@ elif funkcio == "📊 Értékesítő":
                 get_matrix(adatok, w).replace(0, "").to_excel(writer, sheet_name="Keszlet", startrow=row, index=False)
                 row += 20
         st.download_button("✅ Letöltés (Excel)", buffer.getvalue(), "Leltar_Osszes.xlsx")
-    
     for w in ["M", "W", "XW", "XXW"]:
         st.subheader(f"📦 {w} szélesség")
         df = get_matrix(adatok, w).replace(0, "")
