@@ -5,6 +5,7 @@ from firebase_admin import credentials, firestore
 from datetime import datetime, timedelta
 from io import BytesIO
 import openpyxl
+from collections import defaultdict
 
 # --- KONFIGURÁCIÓ ---
 ADMIN_JELSZO = "admin123"
@@ -49,34 +50,39 @@ def szinezo(row):
     if row["Keménység"] == "ÖSSZESEN": return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
     return [f'background-color: {szinek.get(row["Keménység"], "#FFFFFF")}'] * len(row)
 
-# --- RIPORT GENERÁLÁS ---
+# --- RIPORT GENERÁLÁS (AGGREGÁLT LOGIKA) ---
 def generate_weekly_report(year, week):
     jan4 = datetime(year, 1, 4)
     start_date = jan4 + timedelta(days=(week - 1) * 7 - jan4.weekday())
     
-    # Adatok lekérése Python oldali szűréssel
+    # 1. Adatok lekérése
     naplo_docs = db.collection("naplo").where("datum", ">=", start_date.strftime("%Y-%m-%d")).stream()
-    adatok = [d.to_dict() for d in naplo_docs]
+    
+    # 2. AGGREGÁCIÓ: (datum, sku) kulccsal összeadjuk a darabszámokat
+    osszesites = defaultdict(int)
+    for d in naplo_docs:
+        doc = d.to_dict()
+        if doc.get("tipus") == "kiszedes":
+            key = (doc.get("datum"), doc.get("sku"))
+            osszesites[key] += doc.get("darabszam", 0)
 
     wb = openpyxl.load_workbook("template.xlsx")
     ws = wb.active
+    ws['O1'] = week
     
-    ws['O1'] = week # Hét sorszáma
-    
-    # Napok és típusok leképezése (minden naphoz 3 oszlop)
-    # A minta alapján a napok oszlopait kell számolni (1-3, 4-6, 7-9, 10-12, 13-15)
-    for sor in adatok:
-        datum_obj = datetime.strptime(sor.get("datum"), "%Y-%m-%d")
-        nap_index = datum_obj.weekday() # 0 = Hétfő ... 6 = Vasárnap
+    # 3. Adatok kiírása az aggregált szótárból
+    for (datum, sku), mennyiseg in osszesites.items():
+        datum_obj = datetime.strptime(datum, "%Y-%m-%d")
+        nap_index = datum_obj.weekday() # 0 = Hétfő
         col_offset = nap_index * 3 + 1
         
-        # Találjunk egy üres sort a napon belül (4-től 33-ig a kiszedés blokk)
+        # Keressük az első üres sort a nap oszlopában
         for r in range(4, 34):
             if ws.cell(row=r, column=col_offset).value is None:
-                sku_parts = sor.get("sku", "").split("_")
+                sku_parts = sku.split("_")
                 ws.cell(row=r, column=col_offset, value=f"{sku_parts[0]}{sku_parts[1]}")
                 ws.cell(row=r, column=col_offset+1, value=sku_parts[2])
-                ws.cell(row=r, column=col_offset+2, value=sor.get("darabszam", 0))
+                ws.cell(row=r, column=col_offset+2, value=mennyiseg)
                 break
     
     buffer = BytesIO()
@@ -125,7 +131,6 @@ elif funkcio == "📊 Értékesítő":
                 get_matrix(adatok, w).replace(0, "").to_excel(writer, sheet_name="Keszlet", startrow=row, index=False)
                 row += 20
         st.download_button("✅ Letöltés (Excel)", buffer.getvalue(), "Leltar_Osszes.xlsx")
-    
     for w in ["M", "W", "XW", "XXW"]:
         st.subheader(f"📦 {w} szélesség")
         df = get_matrix(adatok, w).replace(0, "")
