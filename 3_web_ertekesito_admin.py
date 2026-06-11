@@ -38,19 +38,19 @@ def get_matrix(adatok, w):
         for k in hardnesses:
             matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
     
-    # 1. Oszloponkénti összeg (az ÖSSZESEN sorhoz)
+    # Oszloponkénti összeg (az ÖSSZESEN sorhoz)
     osszeg_sor = matrix.sum(axis=0)
     
-    # 2. DataFrame összeállítása
+    # DataFrame összeállítása
     df = matrix.reset_index().rename(columns={"index": "Keménység"})
     
-    # 3. ÖSSZESEN sor hozzáadása
+    # ÖSSZESEN sor hozzáadása
     df.loc[len(df)] = ["ÖSSZESEN"] + list(osszeg_sor)
     
-    # 4. Jobb szélső oszlop: Keménység másolata
-    df["Keménység_Jobb"] = df["Keménység"]
+    # TÍPUSKÉNYSZERÍTÉS: Az oszlop legyen objektum típusú, hogy kezelje a számot is
+    df["Keménység_Jobb"] = df["Keménység"].astype(object)
     
-    # 5. Végösszeg beírása a jobb alsó cellába (ÖSSZESEN sor, utolsó oszlop)
+    # Végösszeg beírása a jobb alsó cellába (ÖSSZESEN sor, utolsó oszlop)
     df.at[len(df)-1, "Keménység_Jobb"] = int(osszeg_sor.sum())
     
     return df
