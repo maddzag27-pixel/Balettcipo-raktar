@@ -85,11 +85,25 @@ elif funkcio == "📊 Értékesítő":
 elif funkcio == "🔐 Admin":
     st.title("🔐 Adminisztráció")
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
-        st.subheader("🛠 Készlet módosítása")
-        valasztott_sku = st.selectbox("SKU:", [f"{m}_{w}_{k}" for m in range(5,15) for w in ["M","W","XW","XXW"] for k in ["LGH","SFT","FLX","SUP","REG","FRM","STR","XFR","XST"]])
-        uj_ertek = st.number_input("Új érték:", value=0)
-        if st.button("Mentés"):
+        st.subheader("📊 Készlet áttekintése és módosítása")
+        
+        # Táblázatos nézet (színezés nélkül, nullák elrejtésével)
+        adatok = get_firebase_data()
+        for w in ["M", "W", "XW", "XXW"]:
+            with st.expander(f"📦 {w} szélesség"):
+                df_admin = get_matrix(adatok, w).replace(0, "") # Nullák elrejtése
+                st.dataframe(df_admin, use_container_width=True)
+        
+        st.divider()
+        st.subheader("🛠 Manuális készlet módosítása")
+        skus = [f"{m}_{w}_{k}" for m in range(5, 15) for w in ["M", "W", "XW", "XXW"] for k in ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"]]
+        valasztott_sku = st.selectbox("SKU kiválasztása:", skus)
+        uj_ertek = st.number_input("Új készletérték beállítása:", value=0, min_value=0)
+        
+        if st.button("Mentés az adatbázisba"):
             db.collection("keszlet").document(valasztott_sku).set({"mennyiseg": uj_ertek}, merge=True)
-            st.success("Mentve!")
+            st.success(f"A {valasztott_sku} új értéke: {uj_ertek}")
+            st.rerun() # Frissítjük az oldalt, hogy az új érték látszódjon
+            
     else:
-        st.warning("Add meg a jelszót!")
+        st.warning("Add meg a jelszót a kezelőfelület eléréséhez!")
