@@ -68,29 +68,40 @@ def szinezo(row):
 def generate_weekly_report(year, week):
     jan4 = datetime(year, 1, 4)
     start_date = jan4 + timedelta(days=(week - 1) * 7 - jan4.weekday())
+    
+    # Adatok lekérése (most mindent lekérünk, ami a héten történt)
     naplo_docs = db.collection("naplo").where("datum", ">=", start_date.strftime("%Y-%m-%d")).stream()
     
+    # Külön gyűjtjük a típusokat: {(datum, sku, tipus): darabszam}
     osszesites = defaultdict(int)
     for d in naplo_docs:
         doc = d.to_dict()
-        if doc.get("tipus") == "kiszedes":
-            key = (doc.get("datum"), doc.get("sku"))
-            osszesites[key] += doc.get("darabszam", 0)
+        key = (doc.get("datum"), doc.get("sku"), doc.get("tipus"))
+        osszesites[key] += doc.get("darabszam", 0)
 
     wb = openpyxl.load_workbook("template.xlsx")
     ws = wb.active
     ws['O1'] = week
-    for (datum, sku), mennyiseg in osszesites.items():
+    
+    # Segédlet a sávokhoz
+    # Kiszedés: 4-től 33-ig
+    # Visszarakás: pl. 37-től 66-ig (a sablonod alapján ez a VISSZA rész)
+    for (datum, sku, tipus), mennyiseg in osszesites.items():
         datum_obj = datetime.strptime(datum, "%Y-%m-%d")
-        nap_index = datum_obj.weekday()
+        nap_index = datum_obj.weekday() 
         col_offset = nap_index * 3 + 1
-        for r in range(4, 34):
+        
+        # Kezdősor meghatározása típus szerint
+        start_row = 4 if tipus == "kiszedes" else 37 
+        
+        for r in range(start_row, start_row + 30):
             if ws.cell(row=r, column=col_offset).value is None:
                 sku_parts = sku.split("_")
                 ws.cell(row=r, column=col_offset, value=f"{sku_parts[0]}{sku_parts[1]}")
                 ws.cell(row=r, column=col_offset+1, value=sku_parts[2])
                 ws.cell(row=r, column=col_offset+2, value=mennyiseg)
                 break
+    
     buffer = BytesIO()
     wb.save(buffer)
     return buffer.getvalue()
