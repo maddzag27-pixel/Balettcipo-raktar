@@ -47,7 +47,7 @@ def szinezo(row):
     szinek = {
         "LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", 
         "SUP": "#E0E0E0", "REG": "#FFC000", "FRM": "#CD7F32", 
-        "STR": "#ADD8E6", "XFR": "#A6A6A6", "XST": "#FFB6C1" 
+        "STR": "#ADD8E6", "XFR": "#A6A6A6", "XST": "#FF4500" 
     }
     if row["Keménység"] == "ÖSSZESEN": 
         return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
