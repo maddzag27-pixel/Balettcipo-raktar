@@ -131,18 +131,26 @@ elif funkcio == "🔐 Admin":
         for w in ["M", "W", "XW", "XXW"]:
             with st.expander(f"📦 {w} szélesség"):
                 df = get_matrix(adatok, w)
-                # SZERKESZTŐI NÉZET:
-                edited_df = st.data_editor(df, hide_index=True, use_container_width=True)
+                
+                # Különválasztjuk az adatokat és az összesen sort
+                adat_df = df[df["Keménység"] != "ÖSSZESEN"]
+                osszesen_df = df[df["Keménység"] == "ÖSSZESEN"]
+                
+                # 1. Szerkeszthető rész
+                edited_df = st.data_editor(adat_df, hide_index=True, use_container_width=True)
+                
+                # 2. Összesen sor formázva (vastagított)
+                st.dataframe(osszesen_df.style.set_properties(**{'font-weight': 'bold', 'background-color': '#f0f0f0'}), 
+                             hide_index=True, use_container_width=True)
                 
                 if st.button(f"Mentés: {w} szélesség"):
-                    # Mentési logika: végigmegyünk az editált táblán
+                    # Mentés az edited_df alapján (az összesen sort nem mentjük)
                     for index, row in edited_df.iterrows():
-                        if row["Keménység"] != "ÖSSZESEN":
-                            for col in edited_df.columns:
-                                if col not in ["Keménység", "ÖSSZESEN"]:
-                                    new_val = int(row[col])
-                                    sku = f"{col}_{w}_{row['Keménység']}"
-                                    db.collection("keszlet").document(sku).set({"mennyiseg": new_val}, merge=True)
+                        for col in edited_df.columns:
+                            if col not in ["Keménység", "ÖSSZESEN"]:
+                                new_val = int(row[col])
+                                sku = f"{col}_{w}_{row['Keménység']}"
+                                db.collection("keszlet").document(sku).set({"mennyiseg": new_val}, merge=True)
                     st.success(f"{w} szélesség frissítve!")
                     st.rerun()
     else: st.warning("Add meg a jelszót!")
