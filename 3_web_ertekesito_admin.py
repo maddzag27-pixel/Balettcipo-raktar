@@ -42,8 +42,8 @@ def get_matrix(adatok, w):
     matrix["ÖSSZESEN"] = matrix.sum(axis=1)
     matrix.loc["ÖSSZESEN"] = matrix.sum(axis=0)
     
-    # Itt állítjuk üresre a bal felső cellát (az index nevét)
-    df = matrix.reset_index().rename(columns={"index": ""}) 
+    # A bal felső cella üres ("")
+    df = matrix.reset_index().rename(columns={"index": ""})
     return df
 
 def szinezo(row):
