@@ -49,10 +49,14 @@ def szinezo(row):
         "SUP": "#E0E0E0", "REG": "#FFFF00", "FRM": "#CD7F32", 
         "STR": "#00BFFF", "XFR": "#A6A6A6", "XST": "#FF4500" 
     }
+    style = ['font-weight: bold'] * len(row)
     if row["Keménység"] == "ÖSSZESEN": 
         return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
     color = szinek.get(row["Keménység"], "#FFFFFF")
-    return [f'background-color: {color}'] * len(row)
+    for i in range(len(row)):
+        style[i] = f'background-color: {color}; font-weight: bold'
+        
+    return style
 
 # --- RIPORT GENERÁLÁS (AGGREGÁLT) ---
 def generate_weekly_report(year, week):
