@@ -38,9 +38,12 @@ def get_matrix(adatok, w):
     for m in sizes:
         for k in hardnesses:
             matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
+    
     matrix["ÖSSZESEN"] = matrix.sum(axis=1)
     matrix.loc["ÖSSZESEN"] = matrix.sum(axis=0)
-    df = matrix.reset_index().rename(columns={"index": "Keménység"})
+    
+    # Itt állítjuk üresre a bal felső cellát (az index nevét)
+    df = matrix.reset_index().rename(columns={"index": ""}) 
     return df
 
 def szinezo(row):
@@ -138,16 +141,17 @@ elif funkcio == "🔐 Admin":
                 adat_df = df[df.iloc[:, 0] != "ÖSSZESEN"]
                 osszesen_df = df[df.iloc[:, 0] == "ÖSSZESEN"]
                 
-                edited_df = st.data_editor(adat_df, hide_index=True, use_container_width=True)
-                st.dataframe(osszesen_df.style.set_properties(**{'font-weight': 'bold', 'background-color': '#f0f0f0'}), 
-                             hide_index=True, use_container_width=True)
+                # A data_editor fejlécét itt kezeljük:
+                edited_df = st.data_editor(
+                    adat_df, 
+                    hide_index=True, 
+                    use_container_width=True,
+                    # Ez elrejti a bal felső cella feliratát
+                    column_config={"": st.column_config.TextColumn("", disabled=True)}
+                )
                 
-                if st.button(f"Mentés: {w} szélesség"):
-                    for index, row in edited_df.iterrows():
-                        for col in edited_df.columns[1:-1]: # Első és utolsó oszlop (Keménység/Összesen) kihagyása
-                            new_val = int(row[col]) if str(row[col]).isdigit() else 0
-                            sku = f"{col}_{w}_{row.iloc[0]}"
-                            db.collection("keszlet").document(sku).set({"mennyiseg": new_val}, merge=True)
-                    st.success(f"{w} szélesség frissítve!")
-                    st.rerun()
-    else: st.warning("Add meg a jelszót!")
+                st.dataframe(
+                    osszesen_df.style.set_properties(**{'font-weight': 'bold', 'background-color': '#f0f0f0'}), 
+                    hide_index=True, 
+                    use_container_width=True
+                )
