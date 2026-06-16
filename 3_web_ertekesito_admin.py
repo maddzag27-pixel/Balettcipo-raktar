@@ -49,8 +49,8 @@ def get_matrix(adatok, w):
 def szinezo(row):
     szinek = {
         "LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", 
-        "SUP": "#E0E0E0", "REG": "#FFC000", "FRM": "#CD7F32", 
-        "STR": "#ADD8E6", "XFR": "#A6A6A6", "XST": "#FFB6C1" 
+        "SUP": "#E0E0E0", "REG": "#FFFF00", "FRM": "#CD7F32", 
+        "STR": "#00BFFF", "XFR": "#A6A6A6", "XST": "#FF4500" 
     }
     # row.iloc[0] az első oszlop értéke, függetlenül a nevétől
     cell_value = row.iloc[0]
