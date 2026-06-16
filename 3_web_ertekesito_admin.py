@@ -66,32 +66,40 @@ def szinezo(row):
 
 # --- RIPORT GENERÁLÁS (AGGREGÁLT) ---
 def generate_weekly_report(year, week):
+    # 1. Hét kezdete és vége kiszámítása (hétfőtől vasárnapig)
     jan4 = datetime(year, 1, 4)
     start_date = jan4 + timedelta(days=(week - 1) * 7 - jan4.weekday())
+    end_date = start_date + timedelta(days=6)
     
-    # Adatok lekérése (most mindent lekérünk, ami a héten történt)
-    naplo_docs = db.collection("naplo").where("datum", ">=", start_date.strftime("%Y-%m-%d")).stream()
+    # 2. Lekérdezés szűkítése: CSAK az adott hétre
+    naplo_docs = db.collection("naplo") \
+        .where("datum", ">=", start_date.strftime("%Y-%m-%d")) \
+        .where("datum", "<=", end_date.strftime("%Y-%m-%d")) \
+        .stream()
     
-    # Külön gyűjtjük a típusokat: {(datum, sku, tipus): darabszam}
+    # 3. Aggregálás (csak az adott hét napjaival)
     osszesites = defaultdict(int)
     for d in naplo_docs:
         doc = d.to_dict()
         key = (doc.get("datum"), doc.get("sku"), doc.get("tipus"))
         osszesites[key] += doc.get("darabszam", 0)
 
+    # 4. Excel kitöltése (template betöltése után)
     wb = openpyxl.load_workbook("template.xlsx")
     ws = wb.active
     ws['O1'] = week
     
-    # Segédlet a sávokhoz
-    # Kiszedés: 4-től 33-ig
-    # Visszarakás: pl. 37-től 66-ig (a sablonod alapján ez a VISSZA rész)
+    # A táblázat törlése a beírás előtt (hogy ne maradjon benne előző heti adat)
+    for r in range(4, 70): # A kiszedés és vissza blokk tartománya
+        for c in range(1, 22):
+            ws.cell(row=r, column=c).value = None
+
     for (datum, sku, tipus), mennyiseg in osszesites.items():
         datum_obj = datetime.strptime(datum, "%Y-%m-%d")
         nap_index = datum_obj.weekday() 
         col_offset = nap_index * 3 + 1
         
-        # Kezdősor meghatározása típus szerint
+        # Kezdősor: kiszedés (4), visszarakás (37)
         start_row = 4 if tipus == "kiszedes" else 36 
         
         for r in range(start_row, start_row + 30):
