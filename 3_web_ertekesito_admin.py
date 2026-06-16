@@ -88,7 +88,32 @@ def generate_weekly_report(year, week):
 funkcio = st.sidebar.radio("Válassz felületet:", ["📱 Raktári Kiszedés", "📊 Értékesítő", "🔐 Admin"], key="nav")
 
 if funkcio == "📱 Raktári Kiszedés":
-    # ... (Kiszedés kódja marad) ...
+    st.title("📱 Raktári Mozgás")
+    adatok = get_firebase_data()
+    c1, c2, c3 = st.columns(3)
+    meret = c1.selectbox("Méret:", [str(i) for i in range(5, 15)])
+    szelesseg = c2.selectbox("Szélesség:", ["M", "W", "XW", "XXW"])
+    kemenyseg = c3.selectbox("Keménység:", ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"])
+    sku = f"{meret}_{szelesseg}_{kemenyseg}"
+    st.write(f"Jelenlegi készlet: **{adatok.get(sku, 0)}**")
+    
+    col1, col2 = st.columns(2)
+    if col1.button("❌ Kiszedés"):
+        db.collection("keszlet").document(sku).set({"mennyiseg": adatok.get(sku, 0) - 1}, merge=True)
+        db.collection("naplo").add({"datum": datetime.now().strftime("%Y-%m-%d"), "sku": sku, "tipus": "kiszedes", "darabszam": 1})
+        st.rerun()
+    if col2.button("✅ Visszarakás"):
+        db.collection("keszlet").document(sku).set({"mennyiseg": adatok.get(sku, 0) + 1}, merge=True)
+        db.collection("naplo").add({"datum": datetime.now().strftime("%Y-%m-%d"), "sku": sku, "tipus": "visszarakas", "darabszam": 1})
+        st.rerun()
+
+    st.divider()
+    st.subheader("📥 Heti riport export")
+    ev, het = st.columns(2)
+    ev_in = ev.number_input("Év", value=datetime.now().year)
+    het_in = het.number_input("Hét", value=datetime.now().isocalendar()[1])
+    if st.button("Riport készítése"):
+        st.download_button("📥 Letöltés (Excel)", generate_weekly_report(ev_in, het_in), f"heti_riport_{ev_in}_W{het_in}.xlsx")
     pass
 
 elif funkcio == "📊 Értékesítő":
