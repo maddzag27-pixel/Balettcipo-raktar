@@ -49,24 +49,27 @@ def get_matrix(adatok, w):
 def szinezo(row):
     szinek = {
         "LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", 
-        "SUP": "#E0E0E0", "REG": "#FFFF00", "FRM": "#CD7F32", 
-        "STR": "#00BFFF", "XFR": "#A6A6A6", "XST": "#FF4500" 
+        "SUP": "#E0E0E0", "REG": "#FFC000", "FRM": "#CD7F32", 
+        "STR": "#ADD8E6", "XFR": "#A6A6A6", "XST": "#FFB6C1" 
     }
+    # row.iloc[0] az első oszlop értéke, függetlenül a nevétől
     cell_value = row.iloc[0]
+    
+    # Alap stílus minden cellára
     style = ['font-weight: bold'] * len(row)
-    if row["Keménység"] == "ÖSSZESEN": 
+    
+    if cell_value == "ÖSSZESEN": 
         return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
-    color = szinek.get(row["Keménység"], "#FFFFFF")
-    for i in range(len(row)):
-        style[i] = f'background-color: {color}; font-weight: bold'
-        
-    return style
+    
+    color = szinek.get(cell_value, "#FFFFFF")
+    return [f'background-color: {color}; font-weight: bold'] * len(row)
 
 # --- RIPORT GENERÁLÁS (AGGREGÁLT) ---
 def generate_weekly_report(year, week):
     jan4 = datetime(year, 1, 4)
     start_date = jan4 + timedelta(days=(week - 1) * 7 - jan4.weekday())
     naplo_docs = db.collection("naplo").where("datum", ">=", start_date.strftime("%Y-%m-%d")).stream()
+    
     osszesites = defaultdict(int)
     for d in naplo_docs:
         doc = d.to_dict()
@@ -95,36 +98,7 @@ def generate_weekly_report(year, week):
 # --- APP LOGIKA ---
 funkcio = st.sidebar.radio("Válassz felületet:", ["📱 Raktári Kiszedés", "📊 Értékesítő", "🔐 Admin"], key="nav")
 
-if funkcio == "📱 Raktári Kiszedés":
-    st.title("📱 Raktári Mozgás")
-    adatok = get_firebase_data()
-    c1, c2, c3 = st.columns(3)
-    meret = c1.selectbox("Méret:", [str(i) for i in range(5, 15)])
-    szelesseg = c2.selectbox("Szélesség:", ["M", "W", "XW", "XXW"])
-    kemenyseg = c3.selectbox("Keménység:", ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"])
-    sku = f"{meret}_{szelesseg}_{kemenyseg}"
-    st.write(f"Jelenlegi készlet: **{adatok.get(sku, 0)}**")
-    
-    col1, col2 = st.columns(2)
-    if col1.button("❌ Kiszedés"):
-        db.collection("keszlet").document(sku).set({"mennyiseg": adatok.get(sku, 0) - 1}, merge=True)
-        db.collection("naplo").add({"datum": datetime.now().strftime("%Y-%m-%d"), "sku": sku, "tipus": "kiszedes", "darabszam": 1})
-        st.rerun()
-    if col2.button("✅ Visszarakás"):
-        db.collection("keszlet").document(sku).set({"mennyiseg": adatok.get(sku, 0) + 1}, merge=True)
-        db.collection("naplo").add({"datum": datetime.now().strftime("%Y-%m-%d"), "sku": sku, "tipus": "visszarakas", "darabszam": 1})
-        st.rerun()
-
-    st.divider()
-    st.subheader("📥 Heti riport export")
-    ev, het = st.columns(2)
-    ev_in = ev.number_input("Év", value=datetime.now().year)
-    het_in = het.number_input("Hét", value=datetime.now().isocalendar()[1])
-    if st.button("Riport készítése"):
-        st.download_button("📥 Letöltés (Excel)", generate_weekly_report(ev_in, het_in), f"heti_riport_{ev_in}_W{het_in}.xlsx")
-    pass
-
-elif funkcio == "📊 Értékesítő":
+if funkcio == "📊 Értékesítő":
     st.title("📊 Értékesítői Nézet")
     adatok = get_firebase_data()
     for w in ["M", "W", "XW", "XXW"]:
@@ -142,17 +116,16 @@ elif funkcio == "🔐 Admin":
                 adat_df = df[df.iloc[:, 0] != "ÖSSZESEN"]
                 osszesen_df = df[df.iloc[:, 0] == "ÖSSZESEN"]
                 
-                # A data_editor fejlécét itt kezeljük:
-                edited_df = st.data_editor(
-                    adat_df, 
-                    hide_index=True, 
-                    use_container_width=True,
-                    # Ez elrejti a bal felső cella feliratát
-                    column_config={"": st.column_config.TextColumn("", disabled=True)}
-                )
+                edited_df = st.data_editor(adat_df, hide_index=True, use_container_width=True)
+                st.dataframe(osszesen_df.style.set_properties(**{'font-weight': 'bold', 'background-color': '#f0f0f0'}), 
+                             hide_index=True, use_container_width=True)
                 
-                st.dataframe(
-                    osszesen_df.style.set_properties(**{'font-weight': 'bold', 'background-color': '#f0f0f0'}), 
-                    hide_index=True, 
-                    use_container_width=True
-                )
+                if st.button(f"Mentés: {w} szélesség"):
+                    for index, row in edited_df.iterrows():
+                        for col in edited_df.columns[1:-1]:
+                            new_val = int(row[col]) if str(row[col]).isdigit() else 0
+                            sku = f"{col}_{w}_{row.iloc[0]}"
+                            db.collection("keszlet").document(sku).set({"mennyiseg": new_val}, merge=True)
+                    st.success(f"{w} szélesség frissítve!")
+                    st.rerun()
+    else: st.warning("Add meg a jelszót!")
