@@ -38,27 +38,33 @@ def get_matrix(adatok, w):
     for m in sizes:
         for k in hardnesses:
             matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
-    osszeg_sor = matrix.sum(axis=0)
+    
+    matrix["ÖSSZESEN"] = matrix.sum(axis=1)
+    matrix.loc["ÖSSZESEN"] = matrix.sum(axis=0)
+    
     df = matrix.reset_index().rename(columns={"index": "Keménység"})
-    df.loc[len(df)] = ["ÖSSZESEN"] + list(osszeg_sor)
-    df["Keménység_Jobb"] = df["Keménység"].astype(object)
-    df.at[len(df)-1, "Keménység_Jobb"] = int(osszeg_sor.sum())
     return df
 
 def szinezo(row):
-    szinek = {"LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", "SUP": "#E0E0E0", "REG": "#FFC000", "FRM": "#CD7F32", "STR": "#4682B4", "XFR": "#A6A6A6", "XST": "#CC0000"}
-    if row["Keménység"] == "ÖSSZESEN": return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
-    return [f'background-color: {szinek.get(row["Keménység"], "#FFFFFF")}'] * len(row)
+    # STR és XST halványítva a jobb olvashatóság érdekében
+    szinek = {
+        "LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", 
+        "SUP": "#E0E0E0", "REG": "#FFC000", "FRM": "#CD7F32", 
+        "STR": "#ADD8E6", "XFR": "#A6A6A6", "XST": "#FFB6C1" 
+    }
+    if row["Keménység"] == "ÖSSZESEN": 
+        return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
+    color = szinek.get(row["Keménység"], "#FFFFFF")
+    return [f'background-color: {color}'] * len(row)
 
-# --- RIPORT GENERÁLÁS (AGGREGÁLT LOGIKA) ---
+# --- RIPORT GENERÁLÁS (AGGREGÁLT) ---
 def generate_weekly_report(year, week):
     jan4 = datetime(year, 1, 4)
     start_date = jan4 + timedelta(days=(week - 1) * 7 - jan4.weekday())
     
-    # 1. Adatok lekérése
     naplo_docs = db.collection("naplo").where("datum", ">=", start_date.strftime("%Y-%m-%d")).stream()
     
-    # 2. AGGREGÁCIÓ: (datum, sku) kulccsal összeadjuk a darabszámokat
+    # Aggregálás: (nap, sku) alapján összeadjuk
     osszesites = defaultdict(int)
     for d in naplo_docs:
         doc = d.to_dict()
@@ -70,13 +76,11 @@ def generate_weekly_report(year, week):
     ws = wb.active
     ws['O1'] = week
     
-    # 3. Adatok kiírása az aggregált szótárból
     for (datum, sku), mennyiseg in osszesites.items():
         datum_obj = datetime.strptime(datum, "%Y-%m-%d")
-        nap_index = datum_obj.weekday() # 0 = Hétfő
+        nap_index = datum_obj.weekday()
         col_offset = nap_index * 3 + 1
         
-        # Keressük az első üres sort a nap oszlopában
         for r in range(4, 34):
             if ws.cell(row=r, column=col_offset).value is None:
                 sku_parts = sku.split("_")
@@ -143,24 +147,17 @@ elif funkcio == "📊 Értékesítő":
     
     st.divider()
     adatok = get_firebase_data()
-    if st.button("📥 Összes leltár exportálása"):
-        buffer = BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            row = 0
-            for w in ["M", "W", "XW", "XXW"]:
-                get_matrix(adatok, w).replace(0, "").to_excel(writer, sheet_name="Keszlet", startrow=row, index=False)
-                row += 20
-        st.download_button("✅ Letöltés (Excel)", buffer.getvalue(), "Leltar_Osszes.xlsx")
     for w in ["M", "W", "XW", "XXW"]:
         st.subheader(f"📦 {w} szélesség")
         df = get_matrix(adatok, w).replace(0, "")
-        st.dataframe(df.style.apply(szinezo, axis=1), use_container_width=True)
+        st.dataframe(df.style.apply(szinezo, axis=1), use_container_width=True, hide_index=True)
 
 elif funkcio == "🔐 Admin":
     st.title("🔐 Adminisztráció")
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
         adatok = get_firebase_data()
         for w in ["M", "W", "XW", "XXW"]:
-            with st.expander(f"📦 {w} szélesség"):
-                st.dataframe(get_matrix(adatok, w).replace(0, ""), use_container_width=True)
+            st.subheader(f"📦 {w} szélesség")
+            df = get_matrix(adatok, w).replace(0, "")
+            st.dataframe(df.style.apply(szinezo, axis=1), use_container_width=True, hide_index=True)
     else: st.warning("Add meg a jelszót!")
