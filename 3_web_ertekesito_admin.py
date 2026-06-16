@@ -52,6 +52,7 @@ def szinezo(row):
         "SUP": "#E0E0E0", "REG": "#FFFF00", "FRM": "#CD7F32", 
         "STR": "#00BFFF", "XFR": "#A6A6A6", "XST": "#FF4500" 
     }
+    cell_value = row.iloc[0]
     style = ['font-weight: bold'] * len(row)
     if row["Keménység"] == "ÖSSZESEN": 
         return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
