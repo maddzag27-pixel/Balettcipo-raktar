@@ -135,26 +135,19 @@ elif funkcio == "🔐 Admin":
         for w in ["M", "W", "XW", "XXW"]:
             with st.expander(f"📦 {w} szélesség"):
                 df = get_matrix(adatok, w)
-                
-                # Különválasztjuk az adatokat és az összesen sort
                 adat_df = df[df.iloc[:, 0] != "ÖSSZESEN"]
                 osszesen_df = df[df.iloc[:, 0] == "ÖSSZESEN"]
                 
-                # 1. Szerkeszthető rész
                 edited_df = st.data_editor(adat_df, hide_index=True, use_container_width=True)
-                
-                # 2. Összesen sor formázva (vastagított)
                 st.dataframe(osszesen_df.style.set_properties(**{'font-weight': 'bold', 'background-color': '#f0f0f0'}), 
                              hide_index=True, use_container_width=True)
                 
                 if st.button(f"Mentés: {w} szélesség"):
-                    # Mentés az edited_df alapján (az összesen sort nem mentjük)
                     for index, row in edited_df.iterrows():
-                        for col in edited_df.columns:
-                            if col not in ["Keménység", "ÖSSZESEN"]:
-                                new_val = int(row[col])
-                                sku = f"{col}_{w}_{row['Keménység']}"
-                                db.collection("keszlet").document(sku).set({"mennyiseg": new_val}, merge=True)
+                        for col in edited_df.columns[1:-1]: # Első és utolsó oszlop (Keménység/Összesen) kihagyása
+                            new_val = int(row[col]) if str(row[col]).isdigit() else 0
+                            sku = f"{col}_{w}_{row.iloc[0]}"
+                            db.collection("keszlet").document(sku).set({"mennyiseg": new_val}, merge=True)
                     st.success(f"{w} szélesség frissítve!")
                     st.rerun()
     else: st.warning("Add meg a jelszót!")
