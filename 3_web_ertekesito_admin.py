@@ -92,7 +92,7 @@ def generate_weekly_report(year, week):
         col_offset = nap_index * 3 + 1
         
         # Kezdősor meghatározása típus szerint
-        start_row = 4 if tipus == "kiszedes" else 37 
+        start_row = 4 if tipus == "kiszedes" else 36 
         
         for r in range(start_row, start_row + 30):
             if ws.cell(row=r, column=col_offset).value is None:
