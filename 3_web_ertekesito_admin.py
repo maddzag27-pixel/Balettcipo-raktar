@@ -137,8 +137,8 @@ elif funkcio == "🔐 Admin":
                 df = get_matrix(adatok, w)
                 
                 # Különválasztjuk az adatokat és az összesen sort
-                adat_df = df[df["Keménység"] != "ÖSSZESEN"]
-                osszesen_df = df[df["Keménység"] == "ÖSSZESEN"]
+                adat_df = df[df.iloc[:, 0] != "ÖSSZESEN"]
+                osszesen_df = df[df.iloc[:, 0] == "ÖSSZESEN"]
                 
                 # 1. Szerkeszthető rész
                 edited_df = st.data_editor(adat_df, hide_index=True, use_container_width=True)
