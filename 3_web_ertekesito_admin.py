@@ -150,18 +150,17 @@ if funkcio == "📊 Értékesítő":
     spec_data = {
         "V-LV": [["7W FLX", "5 pár"], ["6XXW REG", "1 pár"], ["8XW XTR", "1 pár"], ["11XW SUP", "1 pár"]],
         "U-LV": [["8W XFR", "1 pár"], ["8W REG", "2 pár"]],
-        "U-DV": [["8M SFT", "8 pár"], ["8M STR", "1 pár"], ["9M STR", "3 pár"], ["9W STR", "3 pár"]],
-        "U-DV-2": [["8W XST", "1 pár"], ["11XXW XST", "1 pár"], ["11W FLX", "1 pár"], ["11W STR", "1 pár"]],
+        "U-DV": [["8M SFT", "8 pár"], ["8M STR", "1 pár"], ["9M STR", "3 pár"], ["9W STR", "3 pár"], ["8W XST", "1 pár"], ["11XXW XST", "1 pár"], ["11W FLX", "1 pár"], ["11W STR", "1 pár"]],
         "V-DV": [["8W 1/2 XTR", "1 pár"], ["9XW 1/2 XTR", "2 pár"], ["10XW 1/2 XTR", "1 pár"], ["9XXW 2/3 REG", "1 pár"], ["9W REG H-CR", "1 pár"]]
     }
     with col1:
         st.info("### V-LV"); st.table(spec_data["V-LV"])
         st.info("### U-LV"); st.table(spec_data["U-LV"])
     with col2:
-        st.success("### U-DV (1. rész)"); st.table(spec_data["U-DV"])
+        st.success("### U-DV"); st.table(spec_data["U-DV"])
     with col3:
-        st.success("### U-DV (2. rész) & V-DV")
-        st.table(spec_data["U-DV-2"]); st.table(spec_data["V-DV"])
+        st.success("### V-DV")
+        st.table(spec_data["V-DV"])
     
     st.divider()
     adatok = get_firebase_data()
