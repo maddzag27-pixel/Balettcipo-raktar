@@ -215,37 +215,38 @@ elif funkcio == "🔐 Admin":
     st.title("🔐 Adminisztráció")
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
         adatok = get_firebase_data()
+        
         for w in ["M", "W", "XW", "XXW"]:
             with st.expander(f"📦 {w} szélesség"):
                 df = get_matrix(adatok, w)
-                adat_df = df[df.iloc[:, 0] != "ÖSSZESEN"]
-                osszesen_df = df[df.iloc[:, 0] == "ÖSSZESEN"]
                 
-                st.dataframe(
-                    adat_df.style.apply(lambda row: szinezo_admin(row, adatok, w), axis=1), 
+                # Szedjük szét, de az "adat_df"-et most kulccsal látjuk el
+                adat_df = df[df.iloc[:, 0] != "ÖSSZESEN"]
+                
+                # A data_editor-nak adunk egy egyedi KEY-t
+                edited_df = st.data_editor(
+                    adat_df, 
                     hide_index=True, 
-                    use_container_width=True
+                    use_container_width=True, 
+                    key=f"editor_{w}"
                 )
                 
-                st.dataframe(osszesen_df.style.set_properties(**{'font-weight': 'bold', 'background-color': '#f0f0f0'}), 
-                             hide_index=True, use_container_width=True)
-                
                 if st.button(f"Mentés: {w} szélesség"):
-                    # Az 'edited_df' a szerkesztett táblázat
-                    # Az első oszlop az indexnév, ami a keménység (LGH, SFT, stb.)
-                    for _, row in edited_df.iterrows():
-                        kem = row.iloc[0] # Ez a keménység (pl. "LGH")
-                        # Az összes méret oszlopon végigmegyünk (a 0. oszlop a keménység neve)
-                        for meret in edited_df.columns[1:]:
-                            # Kihagyjuk az ÖSSZESEN oszlopot
-                            if meret == "ÖSSZESEN": continue
+                    # Most már a st.session_state-ből hívjuk elő a szerkesztett adatot
+                    saved_df = st.session_state[f"editor_{w}"]
+                    
+                    for _, row in saved_df.iterrows():
+                        kem = row.iloc[0]
+                        for col in saved_df.columns[1:]:
+                            if col == "ÖSSZESEN": continue
                             
-                            val = row[meret]
+                            val = row[col]
                             new_val = int(val) if str(val).isdigit() else 0
                             
-                            sku = f"{meret}_{w}_{kem}"
+                            sku = f"{col}_{w}_{kem}"
                             db.collection("keszlet").document(sku).set({"mennyiseg": new_val}, merge=True)
                     
                     st.success(f"{w} szélesség frissítve!")
                     st.rerun()
-    else: st.warning("Add meg a jelszót!")
+    else: 
+        st.warning("Add meg a jelszót!")
