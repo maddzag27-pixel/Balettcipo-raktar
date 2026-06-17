@@ -46,23 +46,30 @@ def get_matrix(adatok, w):
     
     for m in sizes:
         for k in hardnesses:
-            termek_info = adatok.get(f"{m}_{w}_{k}", {"mennyiseg": 0})
-            matrix.at[k, m] = termek_info.get("mennyiseg", 0)
+            termek = adatok.get(f"{m}_{w}_{k}", {"mennyiseg": 0, "min_ertek": 0})
+            matrix.at[k, m] = termek.get("mennyiseg", 0)
     
-    # 1. Alulra az ÖSSZESEN sor (oszlopok összege)
+    # 1. Összesen sor az aljára
     matrix.loc["ÖSSZESEN"] = matrix.sum(axis=0)
     
-    # 2. Reset index, hogy a keménységek az első oszlopba kerüljenek
+    # 2. Reset index, hogy az első oszlop a keménység legyen
     df = matrix.reset_index()
     df.columns.values[0] = "Keménység"
     
-    # 3. Jobb oldali oszlop: keménységek másolása
-    df["Keménység "] = df["Keménység"] 
+    # 3. Kiszámoljuk a sorszintű összegeket a jobb szélre
+    # A középső (méret) oszlopok összege soronként
+    df["Keménység "] = df.iloc[:, 1:].sum(axis=1)
     
-    # 4. A jobb alsó sarokba (a teljes összeg)
+    # 4. A jobb alsó sarok (teljes készlet)
     teljes_osszeg = df.iloc[:-1, 1:-1].sum().sum()
     df.iloc[-1, -1] = teljes_osszeg
     
+    # 5. Mivel a jobb oldali oszlop most számokat tartalmaz, 
+    # a vizuális megjelenéshez a keménység neveket visszaírjuk 
+    # az utolsó oszlopba a soroknál, de az alsó összesen sort érintetlenül hagyjuk
+    for i in range(len(df) - 1):
+        df.iloc[i, -1] = df.iloc[i, 0] # Itt visszaírjuk a keménységnevet
+        
     return df
 
 def szinezo(row):
