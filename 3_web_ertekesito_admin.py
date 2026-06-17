@@ -43,33 +43,16 @@ def get_matrix(adatok, w):
     sizes = [str(i) for i in range(5, 15)]
     hardnesses = ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"]
     matrix = pd.DataFrame(0, index=hardnesses, columns=sizes)
-    
     for m in sizes:
         for k in hardnesses:
-            termek = adatok.get(f"{m}_{w}_{k}", {"mennyiseg": 0, "min_ertek": 0})
-            matrix.at[k, m] = termek.get("mennyiseg", 0)
+            # Csak a "mennyiseg" kulcsot kérdezzük le az adatbázisból érkező szótárból
+            termek_info = adatok.get(f"{m}_{w}_{k}", {"mennyiseg": 0})
+            matrix.at[k, m] = termek_info.get("mennyiseg", 0)
     
-    # 1. Összesen sor az aljára
+    matrix["ÖSSZESEN"] = matrix.sum(axis=1)
     matrix.loc["ÖSSZESEN"] = matrix.sum(axis=0)
     
-    # 2. Reset index, hogy az első oszlop a keménység legyen
-    df = matrix.reset_index()
-    df.columns.values[0] = "Keménység"
-    
-    # 3. Kiszámoljuk a sorszintű összegeket a jobb szélre
-    # A középső (méret) oszlopok összege soronként
-    df["Keménység "] = df.iloc[:, 1:].sum(axis=1)
-    
-    # 4. A jobb alsó sarok (teljes készlet)
-    teljes_osszeg = df.iloc[:-1, 1:-1].sum().sum()
-    df.iloc[-1, -1] = teljes_osszeg
-    
-    # 5. Mivel a jobb oldali oszlop most számokat tartalmaz, 
-    # a vizuális megjelenéshez a keménység neveket visszaírjuk 
-    # az utolsó oszlopba a soroknál, de az alsó összesen sort érintetlenül hagyjuk
-    for i in range(len(df) - 1):
-        df.iloc[i, -1] = df.iloc[i, 0] # Itt visszaírjuk a keménységnevet
-        
+    df = matrix.reset_index().rename(columns={"index": ""})
     return df
 
 def szinezo(row):
