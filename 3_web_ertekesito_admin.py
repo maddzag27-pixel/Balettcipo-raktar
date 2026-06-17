@@ -28,7 +28,15 @@ db = get_db()
 def get_firebase_data():
     try:
         docs = db.collection("keszlet").stream()
-        return {doc.id: int(doc.to_dict().get("mennyiseg", 0)) for doc in docs}
+        data = {}
+        for doc in docs:
+            d = doc.to_dict()
+            # Mivel most már mindenhol van min_ertek, így biztonságos:
+            data[doc.id] = {
+                "mennyiseg": int(d.get("mennyiseg", 0)),
+                "min_ertek": int(d.get("min_ertek", 0))
+            }
+        return data
     except: return {}
 
 def get_matrix(adatok, w):
