@@ -45,12 +45,13 @@ def get_matrix(adatok, w):
     matrix = pd.DataFrame(0, index=hardnesses, columns=sizes)
     for m in sizes:
         for k in hardnesses:
-            matrix.at[k, m] = adatok.get(f"{m}_{w}_{k}", 0)
+            # Csak a "mennyiseg" kulcsot kérdezzük le az adatbázisból érkező szótárból
+            termek_info = adatok.get(f"{m}_{w}_{k}", {"mennyiseg": 0})
+            matrix.at[k, m] = termek_info.get("mennyiseg", 0)
     
     matrix["ÖSSZESEN"] = matrix.sum(axis=1)
     matrix.loc["ÖSSZESEN"] = matrix.sum(axis=0)
     
-    # A bal felső cella üres ("")
     df = matrix.reset_index().rename(columns={"index": ""})
     return df
 
@@ -72,6 +73,27 @@ def szinezo(row):
     color = szinek.get(cell_value, "#FFFFFF")
     return [f'background-color: {color}; font-weight: bold'] * len(row)
 
+def szinezo_admin(row, adatok, w):
+    szinek = {
+        "LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", 
+        "SUP": "#E0E0E0", "REG": "#FFFF00", "FRM": "#CD7F32", 
+        "STR": "#00BFFF", "XFR": "#A6A6A6", "XST": "#FF4500" 
+    }
+    style = ['font-weight: bold'] * len(row)
+    if row.iloc[0] == "ÖSSZESEN": return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
+    
+    kem = row.iloc[0]
+    for i in range(1, len(row) - 1): 
+        meret = row.index[i]
+        sku = f"{meret}_{w}_{kem}"
+        # Itt kinyerjük a minimumot az "adatok" szótárból
+        info = adatok.get(sku, {"mennyiseg": 0, "min_ertek": 0})
+        
+        if info.get("mennyiseg", 0) < info.get("min_ertek", 0):
+            style[i] = 'background-color: #FF6666; color: white; font-weight: bold'
+        else:
+            style[i] = f'background-color: {szinek.get(kem, "#FFFFFF")}; font-weight: bold'
+    return style
 # --- RIPORT GENERÁLÁS (AGGREGÁLT) ---
 def generate_weekly_report(year, week):
     # 1. Hét kezdete és vége
