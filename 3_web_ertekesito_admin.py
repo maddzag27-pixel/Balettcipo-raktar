@@ -221,7 +221,12 @@ elif funkcio == "🔐 Admin":
                 adat_df = df[df.iloc[:, 0] != "ÖSSZESEN"]
                 osszesen_df = df[df.iloc[:, 0] == "ÖSSZESEN"]
                 
-                edited_df = st.data_editor(adat_df, hide_index=True, use_container_width=True)
+                st.dataframe(
+                    adat_df.style.apply(lambda row: szinezo_admin(row, adatok, w), axis=1), 
+                    hide_index=True, 
+                    use_container_width=True
+                )
+                
                 st.dataframe(osszesen_df.style.set_properties(**{'font-weight': 'bold', 'background-color': '#f0f0f0'}), 
                              hide_index=True, use_container_width=True)
                 
