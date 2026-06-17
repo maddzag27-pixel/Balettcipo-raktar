@@ -43,16 +43,22 @@ def get_matrix(adatok, w):
     sizes = [str(i) for i in range(5, 15)]
     hardnesses = ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"]
     matrix = pd.DataFrame(0, index=hardnesses, columns=sizes)
+    
     for m in sizes:
         for k in hardnesses:
-            # Csak a "mennyiseg" kulcsot kérdezzük le az adatbázisból érkező szótárból
             termek_info = adatok.get(f"{m}_{w}_{k}", {"mennyiseg": 0})
             matrix.at[k, m] = termek_info.get("mennyiseg", 0)
     
+    # 1. Összegzés (ez létrehozza az ÖSSZESEN oszlopot)
     matrix["ÖSSZESEN"] = matrix.sum(axis=1)
+    
+    # 2. Összegzés alulra (ez létrehozza az ÖSSZESEN sort)
     matrix.loc["ÖSSZESEN"] = matrix.sum(axis=0)
     
+    # 3. Itt a trükk: Az indexet (a keménységeket) visszahelyezzük oszlopba
+    # és így az első helyre kerül, ahogy eddig is volt.
     df = matrix.reset_index().rename(columns={"index": ""})
+    
     return df
 
 def szinezo(row):
