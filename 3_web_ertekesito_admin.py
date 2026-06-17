@@ -28,9 +28,15 @@ db = get_db()
 def get_firebase_data():
     try:
         docs = db.collection("keszlet").stream()
-        return {doc.id: int(doc.to_dict().get("mennyiseg", 0)) for doc in docs}
+        data = {}
+        for doc in docs:
+            d = doc.to_dict()
+            data[doc.id] = {
+                "mennyiseg": int(d.get("mennyiseg", 0)),
+                "min_ertek": int(d.get("min_ertek", 0))
+            }
+        return data
     except: return {}
-
 def get_matrix(adatok, w):
     sizes = [str(i) for i in range(5, 15)]
     hardnesses = ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"]
@@ -46,23 +52,32 @@ def get_matrix(adatok, w):
     df = matrix.reset_index().rename(columns={"index": ""})
     return df
 
-def szinezo(row):
+# A függvényedet így hagytuk, ahogy kérted, csak a pirosítással bővítettük:
+def szinezo_admin(row, adatok, w):
     szinek = {
         "LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", 
         "SUP": "#E0E0E0", "REG": "#FFFF00", "FRM": "#CD7F32", 
         "STR": "#00BFFF", "XFR": "#A6A6A6", "XST": "#FF4500" 
     }
-    # row.iloc[0] az első oszlop értéke, függetlenül a nevétől
-    cell_value = row.iloc[0]
-    
-    # Alap stílus minden cellára
     style = ['font-weight: bold'] * len(row)
     
-    if cell_value == "ÖSSZESEN": 
+    if row.iloc[0] == "ÖSSZESEN": 
         return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
     
-    color = szinek.get(cell_value, "#FFFFFF")
-    return [f'background-color: {color}; font-weight: bold'] * len(row)
+    kem = row.iloc[0]
+    alap_color = szinek.get(kem, "#FFFFFF")
+    
+    for i in range(1, len(row)):
+        meret = row.index[i]
+        sku = f"{meret}_{w}_{kem}"
+        info = adatok.get(sku, {"mennyiseg": 0, "min_ertek": 0})
+        
+        # Pirosítás:
+        if info["mennyiseg"] < info["min_ertek"]:
+            style[i] = 'background-color: #FF6666; color: white; font-weight: bold'
+        else:
+            style[i] = f'background-color: {alap_color}; font-weight: bold'
+    return style
 
 # --- RIPORT GENERÁLÁS (AGGREGÁLT) ---
 def generate_weekly_report(year, week):
@@ -184,6 +199,18 @@ if funkcio == "📊 Értékesítő":
 elif funkcio == "🔐 Admin":
     st.title("🔐 Adminisztráció")
     if st.sidebar.text_input("Jelszó:", type="password") == ADMIN_JELSZO:
+        st.subheader("⚙️ Minimum készletek feltöltése táblázatból")
+        uploaded_file = st.file_uploader("Tölts fel a minimumokat tartalmazó Excel fájlt:", type=["xlsx"])
+        
+        if uploaded_file is not None:
+            df_min = pd.read_excel(uploaded_file)
+            if st.button("Adatbázis frissítése minimumokkal"):
+                # Feltételezzük, hogy az Excelben van egy 'SKU' és egy 'Minimum' oszlop
+                for _, row in df_min.iterrows():
+                    sku = str(row["SKU"])
+                    min_ertek = int(row["Minimum"])
+                    db.collection("keszlet").document(sku).set({"min_ertek": min_ertek}, merge=True)
+                st.success("Minimumok sikeresen frissítve!")
         adatok = get_firebase_data()
         for w in ["M", "W", "XW", "XXW"]:
             with st.expander(f"📦 {w} szélesség"):
