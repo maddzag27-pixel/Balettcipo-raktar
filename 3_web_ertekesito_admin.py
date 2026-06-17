@@ -231,11 +231,21 @@ elif funkcio == "🔐 Admin":
                              hide_index=True, use_container_width=True)
                 
                 if st.button(f"Mentés: {w} szélesség"):
-                    for index, row in edited_df.iterrows():
-                        for col in edited_df.columns[1:-1]:
-                            new_val = int(row[col]) if str(row[col]).isdigit() else 0
-                            sku = f"{col}_{w}_{row.iloc[0]}"
+                    # Az 'edited_df' a szerkesztett táblázat
+                    # Az első oszlop az indexnév, ami a keménység (LGH, SFT, stb.)
+                    for _, row in edited_df.iterrows():
+                        kem = row.iloc[0] # Ez a keménység (pl. "LGH")
+                        # Az összes méret oszlopon végigmegyünk (a 0. oszlop a keménység neve)
+                        for meret in edited_df.columns[1:]:
+                            # Kihagyjuk az ÖSSZESEN oszlopot
+                            if meret == "ÖSSZESEN": continue
+                            
+                            val = row[meret]
+                            new_val = int(val) if str(val).isdigit() else 0
+                            
+                            sku = f"{meret}_{w}_{kem}"
                             db.collection("keszlet").document(sku).set({"mennyiseg": new_val}, merge=True)
+                    
                     st.success(f"{w} szélesség frissítve!")
                     st.rerun()
     else: st.warning("Add meg a jelszót!")
