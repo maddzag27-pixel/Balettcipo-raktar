@@ -43,16 +43,28 @@ def get_matrix(adatok, w):
     sizes = [str(i) for i in range(5, 15)]
     hardnesses = ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"]
     matrix = pd.DataFrame(0, index=hardnesses, columns=sizes)
+    
     for m in sizes:
         for k in hardnesses:
-            # Csak a "mennyiseg" kulcsot kérdezzük le az adatbázisból érkező szótárból
             termek_info = adatok.get(f"{m}_{w}_{k}", {"mennyiseg": 0})
             matrix.at[k, m] = termek_info.get("mennyiseg", 0)
     
-    matrix["ÖSSZESEN"] = matrix.sum(axis=1)
+    # 1. Alulra az ÖSSZESEN sor (oszlopok összege)
     matrix.loc["ÖSSZESEN"] = matrix.sum(axis=0)
     
-    df = matrix.reset_index().rename(columns={"index": ""})
+    # 2. Reset index, hogy az első oszlop a keménység legyen
+    df = matrix.reset_index()
+    df.columns.values[0] = "Keménység"
+    
+    # 3. Jobb oldali oszlop (keret)
+    # Az eredeti keménységneveket másoljuk át a végére
+    df["Keménység "] = df["Keménység"] 
+    
+    # 4. A jobb alsó sarokba beírjuk a teljes készletösszeget
+    # Az összesített sor (utolsó sor) összege a méret oszlopokból
+    teljes_osszeg = df.iloc[:-1, 1:-1].sum().sum()
+    df.iloc[-1, -1] = teljes_osszeg
+    
     return df
 
 def szinezo(row):
