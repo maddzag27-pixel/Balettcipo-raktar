@@ -219,33 +219,25 @@ elif funkcio == "🔐 Admin":
         for w in ["M", "W", "XW", "XXW"]:
             with st.expander(f"📦 {w} szélesség"):
                 df = get_matrix(adatok, w)
-                
-                # Szedjük szét, de az "adat_df"-et most kulccsal látjuk el
                 adat_df = df[df.iloc[:, 0] != "ÖSSZESEN"]
                 
-                # A data_editor-nak adunk egy egyedi KEY-t
-                edited_df = st.data_editor(
-                    adat_df, 
-                    hide_index=True, 
-                    use_container_width=True, 
-                    key=f"editor_{w}"
-                )
+                # 1. Itt kapjuk meg a szerkesztett táblázatot
+                edited_df = st.data_editor(adat_df, hide_index=True, use_container_width=True)
                 
+                # 2. Itt jelenítjük meg a pirosítást
+                st.dataframe(adat_df.style.apply(lambda row: szinezo_admin(row, adatok, w), axis=1), 
+                             hide_index=True, use_container_width=True)
+                
+                # 3. Mentés gomb - az edited_df-et használjuk közvetlenül
                 if st.button(f"Mentés: {w} szélesség"):
-                    # Most már a st.session_state-ből hívjuk elő a szerkesztett adatot
-                    saved_df = st.session_state[f"editor_{w}"]
-                    
-                    for _, row in saved_df.iterrows():
+                    for _, row in edited_df.iterrows():
                         kem = row.iloc[0]
-                        for col in saved_df.columns[1:]:
+                        for col in edited_df.columns[1:]:
                             if col == "ÖSSZESEN": continue
-                            
                             val = row[col]
                             new_val = int(val) if str(val).isdigit() else 0
-                            
                             sku = f"{col}_{w}_{kem}"
                             db.collection("keszlet").document(sku).set({"mennyiseg": new_val}, merge=True)
-                    
                     st.success(f"{w} szélesség frissítve!")
                     st.rerun()
     else: 
