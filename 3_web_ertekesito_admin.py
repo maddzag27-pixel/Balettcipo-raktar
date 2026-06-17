@@ -194,6 +194,18 @@ if funkcio == "📊 Értékesítő":
     
     st.divider()
     adatok = get_firebase_data()
+    if st.button("📥 Összes leltár exportálása"):
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            row = 0
+            for w in ["M", "W", "XW", "XXW"]:
+                # Használjuk az üres bal felső cellás get_matrix-ot
+                df = get_matrix(adatok, w).replace(0, "")
+                df.to_excel(writer, sheet_name="Keszlet", startrow=row, index=False)
+                row += 15 # Hagyjunk helyet a következő táblázatnak
+        st.download_button("✅ Letöltés (Excel)", buffer.getvalue(), "Leltar_Osszes.xlsx")
+    
+    st.divider() # Vizuális elválasztás
     for w in ["M", "W", "XW", "XXW"]:
         st.subheader(f"📦 {w} szélesség")
         df = get_matrix(adatok, w).replace(0, "")
