@@ -74,25 +74,25 @@ def szinezo(row):
     return [f'background-color: {color}; font-weight: bold'] * len(row)
 
 def szinezo_admin(row, adatok, w):
-    szinek = {
-        "LGH": "#FFD1DC", "SFT": "#FFFFFF", "FLX": "#FF91A4", 
-        "SUP": "#E0E0E0", "REG": "#FFFF00", "FRM": "#CD7F32", 
-        "STR": "#00BFFF", "XFR": "#A6A6A6", "XST": "#FF4500" 
-    }
-    style = ['font-weight: bold'] * len(row)
-    if row.iloc[0] == "ÖSSZESEN": return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
+    # Alap stílus minden cellára
+    style = [''] * len(row) # Kezdjük üres stílusokkal
+    
+    if row.iloc[0] == "ÖSSZESEN": 
+        return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
     
     kem = row.iloc[0]
-    for i in range(1, len(row) - 1): 
+    
+    for i in range(1, len(row) - 1): # Az ÖSSZESEN oszlopot kihagyjuk
         meret = row.index[i]
         sku = f"{meret}_{w}_{kem}"
-        # Itt kinyerjük a minimumot az "adatok" szótárból
+        
+        # Lekérjük az adatokat
         info = adatok.get(sku, {"mennyiseg": 0, "min_ertek": 0})
         
+        # CSAK akkor adunk stílust, ha a minimum alatt van
         if info.get("mennyiseg", 0) < info.get("min_ertek", 0):
             style[i] = 'background-color: #FF6666; color: white; font-weight: bold'
-        else:
-            style[i] = f'background-color: {szinek.get(kem, "#FFFFFF")}; font-weight: bold'
+        
     return style
 # --- RIPORT GENERÁLÁS (AGGREGÁLT) ---
 def generate_weekly_report(year, week):
