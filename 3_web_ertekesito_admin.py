@@ -219,16 +219,27 @@ elif funkcio == "🔐 Admin":
         for w in ["M", "W", "XW", "XXW"]:
             with st.expander(f"📦 {w} szélesség"):
                 df = get_matrix(adatok, w)
-                adat_df = df[df.iloc[:, 0] != "ÖSSZESEN"]
                 
-                # 1. Itt kapjuk meg a szerkesztett táblázatot
+                # Szétbontás: szerkeszthető rész és összesen sor
+                adat_df = df[df.iloc[:, 0] != "ÖSSZESEN"]
+                osszesen_df = df[df.iloc[:, 0] == "ÖSSZESEN"]
+                
+                # 1. Szerkeszthető táblázat
                 edited_df = st.data_editor(adat_df, hide_index=True, use_container_width=True)
                 
-                # 2. Itt jelenítjük meg a pirosítást
-                st.dataframe(adat_df.style.apply(lambda row: szinezo_admin(row, adatok, w), axis=1), 
-                             hide_index=True, use_container_width=True)
+                # 2. Színezett kijelző táblázat (pirosítás)
+                st.dataframe(
+                    adat_df.style.apply(lambda row: szinezo_admin(row, adatok, w), axis=1), 
+                    hide_index=True, use_container_width=True
+                )
                 
-                # 3. Mentés gomb - az edited_df-et használjuk közvetlenül
+                # 3. Összesen sor formázva
+                st.dataframe(
+                    osszesen_df.style.set_properties(**{'font-weight': 'bold', 'background-color': '#f0f0f0'}), 
+                    hide_index=True, use_container_width=True
+                )
+                
+                # 4. Mentés logikája
                 if st.button(f"Mentés: {w} szélesség"):
                     for _, row in edited_df.iterrows():
                         kem = row.iloc[0]
