@@ -49,15 +49,16 @@ def get_matrix(adatok, w):
             termek_info = adatok.get(f"{m}_{w}_{k}", {"mennyiseg": 0})
             matrix.at[k, m] = termek_info.get("mennyiseg", 0)
     
-    # 1. Összegzés (ez létrehozza az ÖSSZESEN oszlopot)
-    matrix["ÖSSZESEN"] = matrix.sum(axis=1)
-    
-    # 2. Összegzés alulra (ez létrehozza az ÖSSZESEN sort)
+    # 1. Alulra az összegző sor
     matrix.loc["ÖSSZESEN"] = matrix.sum(axis=0)
     
-    # 3. Itt a trükk: Az indexet (a keménységeket) visszahelyezzük oszlopba
-    # és így az első helyre kerül, ahogy eddig is volt.
-    df = matrix.reset_index().rename(columns={"index": ""})
+    # 2. Reset index, hogy a keménységek oszlopba kerüljenek
+    df = matrix.reset_index()
+    df.columns.values[0] = ""
+    
+    # 3. MÁSOLÁS: A bal szélső oszlop (ami az indexből jött) értékét átmásoljuk a jobb szélre
+    # A jobb szélső oszlop neve üres marad, vagy írhatsz ide valamit
+    df[" "] = df.iloc[:, 0]
     
     return df
 
