@@ -235,28 +235,36 @@ if funkcio == "📊 Értékesítő":
         buffer = BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             workbook = writer.book
-            # Formátumok definiálása
             border_fmt = workbook.add_format({'border': 1})
             bold_border_fmt = workbook.add_format({'border': 1, 'bold': True})
             
-            row = 0
+            row_offset = 0
             for w in ["M", "W", "XW", "XXW"]:
                 df = get_matrix(adatok, w).replace(0, "")
-                df.to_excel(writer, sheet_name="Keszlet", startrow=row, index=False)
+                
+                # A DataFrame-et fejléc nélkül írjuk ki, mert a cellákat egyenként formázzuk
+                df.to_excel(writer, sheet_name="Keszlet", startrow=row_offset, index=False, header=True)
                 
                 worksheet = writer.sheets["Keszlet"]
                 
-                # Szegélyek és félkövér alkalmazása
-                # A táblázat mérete: 10 sor (keménységek + összesen) x 12 oszlop
-                for r in range(row, row + 10):
-                    for c in range(12):
-                        # Ha az utolsó sor (ÖSSZESEN), akkor félkövér + szegély
-                        if r == row + 9:
-                            worksheet.write(r, c, df.iloc[r-row, c], bold_border_fmt)
+                # Végigmegyünk a sorokon és oszlopokon
+                # df.shape[0] a sorok száma (adatok + összesen sor)
+                # df.shape[1] az oszlopok száma
+                for r in range(df.shape[0] + 1): # +1 a fejléc miatt
+                    for c in range(df.shape[1]):
+                        # Az aktuális cella értéke a DataFrame-ből
+                        if r == 0: # Fejléc
+                            val = df.columns[c]
+                            worksheet.write(row_offset + r, c, val, bold_border_fmt)
                         else:
-                            worksheet.write(r, c, df.iloc[r-row, c], border_fmt)
-                            
-                row += 12 # Növeljük a sort, hogy legyen hely a következőnek
+                            val = df.iloc[r-1, c]
+                            # Ha az ÖSSZESEN sorban vagyunk (utolsó előtti sor indexe a dataframe-ben)
+                            if r == df.shape[0]: 
+                                worksheet.write(row_offset + r, c, val, bold_border_fmt)
+                            else:
+                                worksheet.write(row_offset + r, c, val, border_fmt)
+                                
+                row_offset += df.shape[0] + 2 # Hagyjunk helyet a következőnek
                 
         st.download_button("✅ Letöltés (Excel)", buffer.getvalue(), "Leltar_Osszes.xlsx")
     
