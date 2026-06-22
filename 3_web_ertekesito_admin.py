@@ -161,22 +161,31 @@ funkcio = st.sidebar.radio("Válassz felületet:", ["📱 Raktári Kiszedés", "
 
 if funkcio == "📱 Raktári Kiszedés":
     st.title("📱 Raktári Mozgás")
-    adatok = get_firebase_data()
-    c1, c2, c3 = st.columns(3)
-    meret = c1.selectbox("Méret:", [str(i) for i in range(5, 15)])
-    szelesseg = c2.selectbox("Szélesség:", ["M", "W", "XW", "XXW"])
-    kemenyseg = c3.selectbox("Keménység:", ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"])
-    sku = f"{meret}_{szelesseg}_{kemenyseg}"
-    st.write(f"Jelenlegi készlet: **{adatok.get(sku, 0)}**")
+    akt_adat = adatok.get(sku, {"mennyiseg": 0})
+    akt_mennyiseg = akt_adat.get("mennyiseg", 0) if isinstance(akt_adat, dict) else akt_adat
+    
+    st.write(f"Jelenlegi készlet: **{akt_mennyiseg}**")
     
     col1, col2 = st.columns(2)
+    
     if col1.button("❌ Kiszedés"):
-        db.collection("keszlet").document(sku).set({"mennyiseg": adatok.get(sku, 0) - 1}, merge=True)
-        db.collection("naplo").add({"datum": datetime.now().strftime("%Y-%m-%d"), "sku": sku, "tipus": "kiszedes", "darabszam": 1})
+        db.collection("keszlet").document(sku).set({"mennyiseg": akt_mennyiseg - 1}, merge=True)
+        db.collection("naplo").add({
+            "datum": datetime.now().strftime("%Y-%m-%d"), 
+            "sku": sku, 
+            "tipus": "kiszedes", 
+            "darabszam": 1
+        })
         st.rerun()
+        
     if col2.button("✅ Visszarakás"):
-        db.collection("keszlet").document(sku).set({"mennyiseg": adatok.get(sku, 0) + 1}, merge=True)
-        db.collection("naplo").add({"datum": datetime.now().strftime("%Y-%m-%d"), "sku": sku, "tipus": "visszarakas", "darabszam": 1})
+        db.collection("keszlet").document(sku).set({"mennyiseg": akt_mennyiseg + 1}, merge=True)
+        db.collection("naplo").add({
+            "datum": datetime.now().strftime("%Y-%m-%d"), 
+            "sku": sku, 
+            "tipus": "visszarakas", 
+            "darabszam": 1
+        })
         st.rerun()
 
     st.divider()
