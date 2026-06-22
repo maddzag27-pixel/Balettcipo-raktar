@@ -161,6 +161,19 @@ funkcio = st.sidebar.radio("Válassz felületet:", ["📱 Raktári Kiszedés", "
 
 if funkcio == "📱 Raktári Kiszedés":
     st.title("📱 Raktári Mozgás")
+    
+    # 1. ITT KELL LEKÉRNI AZ ADATOKAT! 
+    # Ha ez hiányzik, a Python nem tudja, mi az az 'adatok'
+    adatok = get_firebase_data() 
+    
+    c1, c2, c3 = st.columns(3)
+    meret = c1.selectbox("Méret:", [str(i) for i in range(5, 15)])
+    szelesseg = c2.selectbox("Szélesség:", ["M", "W", "XW", "XXW"])
+    kemenyseg = c3.selectbox("Keménység:", ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"])
+    
+    sku = f"{meret}_{szelesseg}_{kemenyseg}"
+    
+    # 2. Most már biztonságosan lekérheted a készletet
     akt_adat = adatok.get(sku, {"mennyiseg": 0})
     akt_mennyiseg = akt_adat.get("mennyiseg", 0) if isinstance(akt_adat, dict) else akt_adat
     
