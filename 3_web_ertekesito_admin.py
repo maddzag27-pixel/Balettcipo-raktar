@@ -141,7 +141,7 @@ def generate_weekly_report(year, week):
         nap_index = datum_obj.weekday() 
         col_offset = nap_index * 3 + 1
         
-        start_row = 4 if tipus == "kiszedes" else 37 
+        start_row = 4 if tipus == "kiszedes" else 36 
         
         for r in range(start_row, start_row + 30):
             # Ha a cella üres, beírjuk az adatot
