@@ -218,7 +218,7 @@ if funkcio == "📊 Értékesítő":
         "V-LV": [["7W FLX", "5 pár"], ["6XXW REG", "1 pár"], ["8XW XTR", "1 pár"], ["11XW SUP", "1 pár"]],
         "U-LV": [["8W XFR", "1 pár"], ["8W REG", "2 pár"]],
         "U-DV": [["8M SFT", "8 pár"], ["8M STR", "1 pár"], ["9M STR", "3 pár"], ["9W STR", "3 pár"], ["8W XST", "1 pár"], ["11XXW XST", "1 pár"], ["11W FLX", "1 pár"]],
-        "V-DV": [["8W 1/2 XTR", "1 pár"], ["9XW 1/2 XTR", "2 pár"], ["10XW 1/2 XTR", "1 pár"], ["9XXW 2/3 REG", "1 pár"], ["9W REG H-CR", "1 pár"]]
+        "V-DV": [["4W SUP", "1 pár"], ["8W 1/2 XTR", "1 pár"], ["9XW 1/2 XTR", "2 pár"], ["10XW 1/2 XTR", "1 pár"], ["9XXW 2/3 REG", "1 pár"], ["9W REG H-CR", "1 pár"]]
     }
     with col1:
         st.info("### V-LV"); st.table(spec_data["V-LV"])
