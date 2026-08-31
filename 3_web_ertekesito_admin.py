@@ -25,7 +25,6 @@ def get_db():
 db = get_db()
 
 # --- SEGÉDFÜGGVÉNYEK ---
-# A @st.cache_data(ttl=60) védi meg az adatbázist a 429 Quota Exceeded hibától.
 @st.cache_data(ttl=60)
 def get_firebase_data():
     try:
@@ -190,7 +189,7 @@ if funkcio == "📱 Raktári Kiszedés":
             "tipus": "kiszedes", 
             "darabszam": 1
         })
-        st.cache_data.clear()  # Cache ürítése módosítás után
+        st.cache_data.clear()
         st.rerun()
         
     if col2.button("✅ Visszarakás"):
@@ -201,7 +200,7 @@ if funkcio == "📱 Raktári Kiszedés":
             "tipus": "visszarakas", 
             "darabszam": 1
         })
-        st.cache_data.clear()  # Cache ürítése módosítás után
+        st.cache_data.clear()
         st.rerun()
 
     st.divider()
@@ -277,11 +276,20 @@ elif funkcio == "🔐 Admin":
             with st.expander(f"📦 {w} szélesség", expanded=True):
                 df = get_matrix(adatok, w)
                 
+                st.write("✏️ **Készlet szerkesztése:**")
+                # Fontos: st.data_editor nyers df-et kap, különben elromlik a szerkesztés
                 edited_df = st.data_editor(
-                    df.style.apply(lambda row: szinezo_admin(row, adatok, w), axis=1),
+                    df,
                     hide_index=True,
                     use_container_width=True,
                     key=f"editor_admin_{w}"
+                )
+                
+                st.write("🔍 **Készletszintek és figyelmeztetések (Nézet):**")
+                st.dataframe(
+                    df.style.apply(lambda row: szinezo_admin(row, adatok, w), axis=1),
+                    hide_index=True,
+                    use_container_width=True
                 )
                 
                 if st.button(f"Mentés: {w} szélesség", key=f"btn_save_{w}"):
@@ -304,7 +312,7 @@ elif funkcio == "🔐 Admin":
                             sku = f"{col_str}_{w}_{kem}"
                             db.collection("keszlet").document(sku).set({"mennyiseg": new_val}, merge=True)
                     
-                    st.cache_data.clear()  # Cache ürítése mentés után
+                    st.cache_data.clear()
                     st.success(f"{w} szélesség készlete sikeresen elmentve!")
                     st.rerun()
     else: 
