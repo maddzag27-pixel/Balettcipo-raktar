@@ -297,7 +297,7 @@ elif funkcio == "🔐 Admin":
                 # 2. Színezett kijelző táblázat (pirosítás)
                 st.dataframe(
                     adat_df.style.apply(lambda row: szinezo_admin(row, adatok, w), axis=1), 
-                    hide_index=True, use_container_width=True
+                    hide_index=True,
                     use_container_width=True,
                     key=f"colored_df_{w}"
                 )
