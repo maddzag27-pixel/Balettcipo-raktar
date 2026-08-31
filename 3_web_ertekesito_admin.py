@@ -31,13 +31,14 @@ def get_firebase_data():
         data = {}
         for doc in docs:
             d = doc.to_dict()
-            # Mivel most már mindenhol van min_ertek, így biztonságos:
             data[doc.id] = {
                 "mennyiseg": int(d.get("mennyiseg", 0)),
                 "min_ertek": int(d.get("min_ertek", 0))
             }
         return data
-    except: return {}
+    except Exception as e:
+        st.error(f"Adatbázis hiba: {e}")
+        return {}
 
 def get_matrix(adatok, w):
     sizes = [str(i) for i in range(5, 15)]
@@ -47,27 +48,27 @@ def get_matrix(adatok, w):
     for m in sizes:
         for k in hardnesses:
             termek_info = adatok.get(f"{m}_{w}_{k}", {"mennyiseg": 0})
-            matrix.at[k, m] = termek_info.get("mennyiseg", 0)
+            if isinstance(termek_info, dict):
+                matrix.at[k, m] = int(termek_info.get("mennyiseg", 0))
+            else:
+                matrix.at[k, m] = int(termek_info)
     
     # 1. Összesen sor az aljára
     matrix.loc["ÖSSZESEN"] = matrix.sum(axis=0)
     
-    # 2. Reset index, hogy az első oszlop a keménység legyen
+    # 2. Reset index
     df = matrix.reset_index()
     df.columns.values[0] = "Keménység"
     
-    # 3. Kényszerítjük a teljes DataFrame-et 'object' típusra, 
-    # hogy rugalmas legyen (számok és szövegek is elférjenek benne)
-    df = df.astype(object)
+    # 3. Jobb oldali záró oszlop és keret összegei
+    df["Keménység "] = df["Keménység"]
     
-    # 4. Jobb oldali oszlop (keret)
-    df["Keménység "] = df["Keménység"] 
-    
-    # 5. A jobb alsó sarokba beírjuk a teljes készletösszeget
-    # Itt az utolsó előtti oszlopig összegezzük a méreteket
-    teljes_osszeg = df.iloc[:-1, 1:-1].sum().sum()
-    df.iloc[-1, -1] = teljes_osszeg
-    
+    # Számoljuk ki a sorszintű és teljes összegeket
+    # A méret oszlopok a 1-től (len(df.columns)-2)-ig tartanak
+    df["ÖSSZESEN"] = 0
+    for idx, row in df.iterrows():
+        df.at[idx, "ÖSSZESEN"] = sum([int(row[col]) for col in sizes if str(row[col]).isdigit()])
+        
     return df
 
 def szinezo(row):
@@ -76,11 +77,7 @@ def szinezo(row):
         "SUP": "#E0E0E0", "REG": "#FFFF00", "FRM": "#CD7F32", 
         "STR": "#00BFFF", "XFR": "#A6A6A6", "XST": "#FF4500" 
     }
-    # row.iloc[0] az első oszlop értéke, függetlenül a nevétől
     cell_value = row.iloc[0]
-    
-    # Alap stílus minden cellára
-    style = ['font-weight: bold'] * len(row)
     
     if cell_value == "ÖSSZESEN": 
         return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
@@ -89,34 +86,32 @@ def szinezo(row):
     return [f'background-color: {color}; font-weight: bold'] * len(row)
 
 def szinezo_admin(row, adatok, w):
-    # Alap stílus minden cellára
-    style = [''] * len(row) # Kezdjük üres stílusokkal
+    style = [''] * len(row)
     
     if row.iloc[0] == "ÖSSZESEN": 
         return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
     
     kem = row.iloc[0]
     
-    for i in range(1, len(row) - 1): # Az ÖSSZESEN oszlopot kihagyjuk
-        meret = row.index[i]
+    for i in range(1, len(row) - 1):
+        meret = str(row.index[i])
         sku = f"{meret}_{w}_{kem}"
         
-        # Lekérjük az adatokat
         info = adatok.get(sku, {"mennyiseg": 0, "min_ertek": 0})
+        menny = info.get("mennyiseg", 0) if isinstance(info, dict) else info
+        min_e = info.get("min_ertek", 0) if isinstance(info, dict) else 0
         
-        # CSAK akkor adunk stílust, ha a minimum alatt van
-        if info.get("mennyiseg", 0) < info.get("min_ertek", 0):
+        if menny < min_e and min_e > 0:
             style[i] = 'background-color: #FF6666; color: white; font-weight: bold'
         
     return style
-# --- RIPORT GENERÁLÁS (AGGREGÁLT) ---
+
+# --- RIPORT GENERÁLÁS ---
 def generate_weekly_report(year, week):
-    # 1. Hét kezdete és vége
     jan4 = datetime(year, 1, 4)
     start_date = jan4 + timedelta(days=(week - 1) * 7 - jan4.weekday())
     end_date = start_date + timedelta(days=6)
     
-    # 2. Lekérdezés
     naplo_docs = db.collection("naplo") \
         .where("datum", ">=", start_date.strftime("%Y-%m-%d")) \
         .where("datum", "<=", end_date.strftime("%Y-%m-%d")) \
@@ -128,13 +123,9 @@ def generate_weekly_report(year, week):
         key = (doc.get("datum"), doc.get("sku"), doc.get("tipus"))
         osszesites[key] += doc.get("darabszam", 0)
 
-    # 3. Sablon betöltése
     wb = openpyxl.load_workbook("template.xlsx")
     ws = wb.active
     ws['O1'] = week
-    
-    # A TÖRLÉSI CIKLUST KIVETTÜK, EZ OKOZTA AZ HIBÁT
-    # Csak azokat a cellákat írjuk felül, amikre adat érkezik
     
     for (datum, sku, tipus), mennyiseg in osszesites.items():
         datum_obj = datetime.strptime(datum, "%Y-%m-%d")
@@ -144,7 +135,6 @@ def generate_weekly_report(year, week):
         start_row = 4 if tipus == "kiszedes" else 36 
         
         for r in range(start_row, start_row + 30):
-            # Ha a cella üres, beírjuk az adatot
             if ws.cell(row=r, column=col_offset).value is None:
                 sku_parts = sku.split("_")
                 ws.cell(row=r, column=col_offset, value=f"{sku_parts[0]}{sku_parts[1]}")
@@ -162,8 +152,6 @@ funkcio = st.sidebar.radio("Válassz felületet:", ["📱 Raktári Kiszedés", "
 if funkcio == "📱 Raktári Kiszedés":
     st.title("📱 Raktári Mozgás")
     
-    # 1. ITT KELL LEKÉRNI AZ ADATOKAT! 
-    # Ha ez hiányzik, a Python nem tudja, mi az az 'adatok'
     adatok = get_firebase_data() 
     
     c1, c2, c3 = st.columns(3)
@@ -173,7 +161,6 @@ if funkcio == "📱 Raktári Kiszedés":
     
     sku = f"{meret}_{szelesseg}_{kemenyseg}"
     
-    # 2. Most már biztonságosan lekérheted a készletet
     akt_adat = adatok.get(sku, {"mennyiseg": 0})
     akt_mennyiseg = akt_adat.get("mennyiseg", 0) if isinstance(akt_adat, dict) else akt_adat
     
@@ -208,9 +195,8 @@ if funkcio == "📱 Raktári Kiszedés":
     het_in = het.number_input("Hét", value=datetime.now().isocalendar()[1])
     if st.button("Riport készítése"):
         st.download_button("📥 Letöltés (Excel)", generate_weekly_report(ev_in, het_in), f"heti_riport_{ev_in}_W{het_in}.xlsx")
-    pass
 
-if funkcio == "📊 Értékesítő":
+elif funkcio == "📊 Értékesítő":
     st.title("📊 Értékesítői Nézet")
     st.subheader("⚠️ ÉRTÉKESÍTHETŐ SPECIÁLIS KÉSZLET")
     col1, col2, col3 = st.columns(3)
@@ -226,11 +212,11 @@ if funkcio == "📊 Értékesítő":
     with col2:
         st.success("### U-DV"); st.table(spec_data["U-DV"])
     with col3:
-        st.success("### V-DV")
-        st.table(spec_data["V-DV"])
+        st.success("### V-DV"); st.table(spec_data["V-DV"])
     
     st.divider()
     adatok = get_firebase_data()
+    
     if st.button("📥 Összes leltár exportálása"):
         buffer = BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
@@ -240,38 +226,30 @@ if funkcio == "📊 Értékesítő":
             
             row_offset = 0
             for w in ["M", "W", "XW", "XXW"]:
-                df = get_matrix(adatok, w).replace(0, "")
-                
-                # A DataFrame-et fejléc nélkül írjuk ki, mert a cellákat egyenként formázzuk
+                df = get_matrix(adatok, w)
                 df.to_excel(writer, sheet_name="Keszlet", startrow=row_offset, index=False, header=True)
-                
                 worksheet = writer.sheets["Keszlet"]
                 
-                # Végigmegyünk a sorokon és oszlopokon
-                # df.shape[0] a sorok száma (adatok + összesen sor)
-                # df.shape[1] az oszlopok száma
-                for r in range(df.shape[0] + 1): # +1 a fejléc miatt
+                for r in range(df.shape[0] + 1):
                     for c in range(df.shape[1]):
-                        # Az aktuális cella értéke a DataFrame-ből
-                        if r == 0: # Fejléc
+                        if r == 0:
                             val = df.columns[c]
                             worksheet.write(row_offset + r, c, val, bold_border_fmt)
                         else:
                             val = df.iloc[r-1, c]
-                            # Ha az ÖSSZESEN sorban vagyunk (utolsó előtti sor indexe a dataframe-ben)
                             if r == df.shape[0]: 
                                 worksheet.write(row_offset + r, c, val, bold_border_fmt)
                             else:
                                 worksheet.write(row_offset + r, c, val, border_fmt)
                                 
-                row_offset += df.shape[0] + 2 # Hagyjunk helyet a következőnek
+                row_offset += df.shape[0] + 2
                 
         st.download_button("✅ Letöltés (Excel)", buffer.getvalue(), "Leltar_Osszes.xlsx")
     
-    st.divider() # Vizuális elválasztás
+    st.divider()
     for w in ["M", "W", "XW", "XXW"]:
         st.subheader(f"📦 {w} szélesség")
-        df = get_matrix(adatok, w).replace(0, "")
+        df = get_matrix(adatok, w)
         st.dataframe(df.style.apply(szinezo, axis=1), use_container_width=True, hide_index=True)
 
 elif funkcio == "🔐 Admin":
@@ -283,9 +261,9 @@ elif funkcio == "🔐 Admin":
             with st.expander(f"📦 {w} szélesség"):
                 df = get_matrix(adatok, w)
                 
-                # Szétbontás: szerkeszthető rész és összesen sor
-                adat_df = df[df.iloc[:, 0] != "ÖSSZESEN"]
-                osszesen_df = df[df.iloc[:, 0] == "ÖSSZESEN"]
+                # Szétbontás
+                adat_df = df[df.iloc[:, 0] != "ÖSSZESEN"].copy()
+                osszesen_df = df[df.iloc[:, 0] == "ÖSSZESEN"].copy()
                 
                 # 1. Szerkeszthető táblázat
                 edited_df = st.data_editor(
@@ -294,26 +272,28 @@ elif funkcio == "🔐 Admin":
                     use_container_width=True,
                     key=f"editor_{w}"
                 )
+                
                 # 2. Színezett kijelző táblázat (pirosítás)
                 st.dataframe(
                     adat_df.style.apply(lambda row: szinezo_admin(row, adatok, w), axis=1), 
-                    hide_index=True,
-                    use_container_width=True,
+                    hide_index=True, 
+                    use_container_width=True
                 )
                 
                 # 3. Összesen sor formázva
                 st.dataframe(
                     osszesen_df.style.set_properties(**{'font-weight': 'bold', 'background-color': '#f0f0f0'}), 
-                    hide_index=True,
-                    use_container_width=True,
+                    hide_index=True, 
+                    use_container_width=True
                 )
                 
                 # 4. Mentés logikája
-                if st.button(f"Mentés: {w} szélesség"):
+                if st.button(f"Mentés: {w} szélesség", key=f"btn_{w}"):
                     for _, row in edited_df.iterrows():
                         kem = row.iloc[0]
                         for col in edited_df.columns[1:]:
-                            if col == "ÖSSZESEN": continue
+                            if col in ["ÖSSZESEN", "Keménység "]: 
+                                continue
                             val = row[col]
                             new_val = int(val) if str(val).isdigit() else 0
                             sku = f"{col}_{w}_{kem}"
