@@ -25,6 +25,8 @@ def get_db():
 db = get_db()
 
 # --- SEGÉDFÜGGVÉNYEK ---
+# A @st.cache_data(ttl=60) védi meg az adatbázist a 429 Quota Exceeded hibától.
+@st.cache_data(ttl=60)
 def get_firebase_data():
     try:
         docs = db.collection("keszlet").stream()
@@ -55,7 +57,6 @@ def get_matrix(adatok, w):
     sizes = [str(i) for i in range(5, 15)]
     hardnesses = ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"]
     
-    # Készítünk egy üres Mátrixot int típusokkal
     matrix = pd.DataFrame(0, index=hardnesses, columns=sizes)
     
     for m in sizes:
@@ -189,6 +190,7 @@ if funkcio == "📱 Raktári Kiszedés":
             "tipus": "kiszedes", 
             "darabszam": 1
         })
+        st.cache_data.clear()  # Cache ürítése módosítás után
         st.rerun()
         
     if col2.button("✅ Visszarakás"):
@@ -199,6 +201,7 @@ if funkcio == "📱 Raktári Kiszedés":
             "tipus": "visszarakas", 
             "darabszam": 1
         })
+        st.cache_data.clear()  # Cache ürítése módosítás után
         st.rerun()
 
     st.divider()
@@ -274,7 +277,6 @@ elif funkcio == "🔐 Admin":
             with st.expander(f"📦 {w} szélesség", expanded=True):
                 df = get_matrix(adatok, w)
                 
-                # Admin nézetben egyetlen st.data_editor felületet használunk színezéssel
                 edited_df = st.data_editor(
                     df.style.apply(lambda row: szinezo_admin(row, adatok, w), axis=1),
                     hide_index=True,
@@ -301,6 +303,8 @@ elif funkcio == "🔐 Admin":
                                 
                             sku = f"{col_str}_{w}_{kem}"
                             db.collection("keszlet").document(sku).set({"mennyiseg": new_val}, merge=True)
+                    
+                    st.cache_data.clear()  # Cache ürítése mentés után
                     st.success(f"{w} szélesség készlete sikeresen elmentve!")
                     st.rerun()
     else: 
