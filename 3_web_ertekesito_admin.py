@@ -299,7 +299,6 @@ elif funkcio == "🔐 Admin":
                     adat_df.style.apply(lambda row: szinezo_admin(row, adatok, w), axis=1), 
                     hide_index=True,
                     use_container_width=True,
-                    key=f"colored_df_{w}"
                 )
                 
                 # 3. Összesen sor formázva
@@ -307,7 +306,6 @@ elif funkcio == "🔐 Admin":
                     osszesen_df.style.set_properties(**{'font-weight': 'bold', 'background-color': '#f0f0f0'}), 
                     hide_index=True,
                     use_container_width=True,
-                    key=f"total_df_{w}"
                 )
                 
                 # 4. Mentés logikája
