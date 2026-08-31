@@ -39,7 +39,6 @@ def get_firebase_data():
         return data
     except: return {}
 
-st.write("DEBUG - Beolvasott adatok száma:", len(adatok) if adatok else "ÜRES / NONE")
 def get_matrix(adatok, w):
     sizes = [str(i) for i in range(5, 15)]
     hardnesses = ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"]
