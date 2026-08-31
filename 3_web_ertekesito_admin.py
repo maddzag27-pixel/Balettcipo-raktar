@@ -299,7 +299,7 @@ elif funkcio == "🔐 Admin":
                     adat_df.style.apply(lambda row: szinezo_admin(row, adatok, w), axis=1), 
                     hide_index=True, use_container_width=True
                     use_container_width=True,
-                    key=f"colored_df_{w}
+                    key=f"colored_df_{w}"
                 )
                 
                 # 3. Összesen sor formázva
