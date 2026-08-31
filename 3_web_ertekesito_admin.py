@@ -31,9 +31,20 @@ def get_firebase_data():
         data = {}
         for doc in docs:
             d = doc.to_dict()
-            data[doc.id] = {
-                "mennyiseg": int(d.get("mennyiseg", 0)),
-                "min_ertek": int(d.get("min_ertek", 0))
+            menny = d.get("mennyiseg", 0)
+            min_e = d.get("min_ertek", 0)
+            try:
+                menny = int(menny)
+            except (ValueError, TypeError):
+                menny = 0
+            try:
+                min_e = int(min_e)
+            except (ValueError, TypeError):
+                min_e = 0
+                
+            data[str(doc.id)] = {
+                "mennyiseg": menny,
+                "min_ertek": min_e
             }
         return data
     except Exception as e:
@@ -43,32 +54,31 @@ def get_firebase_data():
 def get_matrix(adatok, w):
     sizes = [str(i) for i in range(5, 15)]
     hardnesses = ["LGH", "SFT", "FLX", "SUP", "REG", "FRM", "STR", "XFR", "XST"]
+    
+    # Készítünk egy üres Mátrixot int típusokkal
     matrix = pd.DataFrame(0, index=hardnesses, columns=sizes)
     
     for m in sizes:
         for k in hardnesses:
-            termek_info = adatok.get(f"{m}_{w}_{k}", {"mennyiseg": 0})
+            sku = f"{m}_{w}_{k}"
+            termek_info = adatok.get(sku, {"mennyiseg": 0})
             if isinstance(termek_info, dict):
-                matrix.at[k, m] = int(termek_info.get("mennyiseg", 0))
+                val = termek_info.get("mennyiseg", 0)
             else:
-                matrix.at[k, m] = int(termek_info)
+                val = termek_info
+            matrix.at[k, m] = int(val) if val is not None else 0
     
-    # 1. Összesen sor az aljára
+    # 1. Összesen sor
     matrix.loc["ÖSSZESEN"] = matrix.sum(axis=0)
     
-    # 2. Reset index
+    # 2. Reset index az első oszlop megnevezéséhez
     df = matrix.reset_index()
-    df.columns.values[0] = "Keménység"
+    df.rename(columns={"index": "Keménység"}, inplace=True)
     
-    # 3. Jobb oldali záró oszlop és keret összegei
-    df["Keménység "] = df["Keménység"]
+    # 3. Összesen oszlop a sorok végére
+    sizes_cols = [c for c in df.columns if c != "Keménység"]
+    df["ÖSSZESEN"] = df[sizes_cols].sum(axis=1)
     
-    # Számoljuk ki a sorszintű és teljes összegeket
-    # A méret oszlopok a 1-től (len(df.columns)-2)-ig tartanak
-    df["ÖSSZESEN"] = 0
-    for idx, row in df.iterrows():
-        df.at[idx, "ÖSSZESEN"] = sum([int(row[col]) for col in sizes if str(row[col]).isdigit()])
-        
     return df
 
 def szinezo(row):
@@ -77,7 +87,7 @@ def szinezo(row):
         "SUP": "#E0E0E0", "REG": "#FFFF00", "FRM": "#CD7F32", 
         "STR": "#00BFFF", "XFR": "#A6A6A6", "XST": "#FF4500" 
     }
-    cell_value = row.iloc[0]
+    cell_value = str(row.iloc[0])
     
     if cell_value == "ÖSSZESEN": 
         return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
@@ -87,23 +97,26 @@ def szinezo(row):
 
 def szinezo_admin(row, adatok, w):
     style = [''] * len(row)
+    kem = str(row.iloc[0])
     
-    if row.iloc[0] == "ÖSSZESEN": 
+    if kem == "ÖSSZESEN": 
         return ['background-color: #f0f0f0; font-weight: bold'] * len(row)
     
-    kem = row.iloc[0]
-    
-    for i in range(1, len(row) - 1):
-        meret = str(row.index[i])
-        sku = f"{meret}_{w}_{kem}"
-        
+    for i in range(1, len(row)):
+        col_name = str(row.index[i])
+        if col_name == "ÖSSZESEN":
+            style[i] = 'background-color: #f0f0f0; font-weight: bold'
+            continue
+            
+        sku = f"{col_name}_{w}_{kem}"
         info = adatok.get(sku, {"mennyiseg": 0, "min_ertek": 0})
+        
         menny = info.get("mennyiseg", 0) if isinstance(info, dict) else info
         min_e = info.get("min_ertek", 0) if isinstance(info, dict) else 0
         
         if menny < min_e and min_e > 0:
             style[i] = 'background-color: #FF6666; color: white; font-weight: bold'
-        
+            
     return style
 
 # --- RIPORT GENERÁLÁS ---
@@ -258,47 +271,37 @@ elif funkcio == "🔐 Admin":
         adatok = get_firebase_data()
         
         for w in ["M", "W", "XW", "XXW"]:
-            with st.expander(f"📦 {w} szélesség"):
+            with st.expander(f"📦 {w} szélesség", expanded=True):
                 df = get_matrix(adatok, w)
                 
-                # Szétbontás
-                adat_df = df[df.iloc[:, 0] != "ÖSSZESEN"].copy()
-                osszesen_df = df[df.iloc[:, 0] == "ÖSSZESEN"].copy()
-                
-                # 1. Szerkeszthető táblázat
+                # Admin nézetben egyetlen st.data_editor felületet használunk színezéssel
                 edited_df = st.data_editor(
-                    adat_df, 
-                    hide_index=True, 
+                    df.style.apply(lambda row: szinezo_admin(row, adatok, w), axis=1),
+                    hide_index=True,
                     use_container_width=True,
-                    key=f"editor_{w}"
+                    key=f"editor_admin_{w}"
                 )
                 
-                # 2. Színezett kijelző táblázat (pirosítás)
-                st.dataframe(
-                    adat_df.style.apply(lambda row: szinezo_admin(row, adatok, w), axis=1), 
-                    hide_index=True, 
-                    use_container_width=True
-                )
-                
-                # 3. Összesen sor formázva
-                st.dataframe(
-                    osszesen_df.style.set_properties(**{'font-weight': 'bold', 'background-color': '#f0f0f0'}), 
-                    hide_index=True, 
-                    use_container_width=True
-                )
-                
-                # 4. Mentés logikája
-                if st.button(f"Mentés: {w} szélesség", key=f"btn_{w}"):
+                if st.button(f"Mentés: {w} szélesség", key=f"btn_save_{w}"):
                     for _, row in edited_df.iterrows():
-                        kem = row.iloc[0]
+                        kem = str(row.iloc[0])
+                        if kem == "ÖSSZESEN":
+                            continue
+                        
                         for col in edited_df.columns[1:]:
-                            if col in ["ÖSSZESEN", "Keménység "]: 
+                            col_str = str(col)
+                            if col_str == "ÖSSZESEN":
                                 continue
+                                
                             val = row[col]
-                            new_val = int(val) if str(val).isdigit() else 0
-                            sku = f"{col}_{w}_{kem}"
+                            try:
+                                new_val = int(val)
+                            except (ValueError, TypeError):
+                                new_val = 0
+                                
+                            sku = f"{col_str}_{w}_{kem}"
                             db.collection("keszlet").document(sku).set({"mennyiseg": new_val}, merge=True)
-                    st.success(f"{w} szélesség frissítve!")
+                    st.success(f"{w} szélesség készlete sikeresen elmentve!")
                     st.rerun()
     else: 
         st.warning("Add meg a jelszót!")
