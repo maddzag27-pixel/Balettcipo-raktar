@@ -288,18 +288,26 @@ elif funkcio == "🔐 Admin":
                 osszesen_df = df[df.iloc[:, 0] == "ÖSSZESEN"]
                 
                 # 1. Szerkeszthető táblázat
-                edited_df = st.data_editor(adat_df, hide_index=True, use_container_width=True)
-                
+                edited_df = st.data_editor(
+                    adat_df, 
+                    hide_index=True, 
+                    use_container_width=True,
+                    key=f"editor_{w}"
+                )
                 # 2. Színezett kijelző táblázat (pirosítás)
                 st.dataframe(
                     adat_df.style.apply(lambda row: szinezo_admin(row, adatok, w), axis=1), 
                     hide_index=True, use_container_width=True
+                    use_container_width=True,
+                    key=f"colored_df_{w}
                 )
                 
                 # 3. Összesen sor formázva
                 st.dataframe(
                     osszesen_df.style.set_properties(**{'font-weight': 'bold', 'background-color': '#f0f0f0'}), 
-                    hide_index=True, use_container_width=True
+                    hide_index=True,
+                    use_container_width=True,
+                    key=f"total_df_{w}"
                 )
                 
                 # 4. Mentés logikája
