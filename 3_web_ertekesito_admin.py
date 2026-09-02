@@ -25,7 +25,8 @@ def get_db():
 db = get_db()
 
 # --- SEGÉDFÜGGVÉNYEK ---
-@st.cache_data(ttl=60)
+# TTL 300 másodpercre (5 perc) állítva a hálózati terhelés csökkentésére
+@st.cache_data(ttl=300)
 def get_firebase_data():
     try:
         docs = db.collection("keszlet").stream()
@@ -182,26 +183,36 @@ if funkcio == "📱 Raktári Kiszedés":
     col1, col2 = st.columns(2)
     
     if col1.button("❌ Kiszedés"):
-        db.collection("keszlet").document(sku).set({"mennyiseg": akt_mennyiseg - 1}, merge=True)
+        uj_mennyiseg = akt_mennyiseg - 1
+        db.collection("keszlet").document(sku).set({"mennyiseg": uj_mennyiseg}, merge=True)
         db.collection("naplo").add({
             "datum": datetime.now().strftime("%Y-%m-%d"), 
             "sku": sku, 
             "tipus": "kiszedes", 
             "darabszam": 1
         })
-        st.cache_data.clear()
-        st.rerun()
+        # Helyi memória frissítése gyorsítótár ürítés / rerun helyett
+        if sku in adatok and isinstance(adatok[sku], dict):
+            adatok[sku]["mennyiseg"] = uj_mennyiseg
+        else:
+            adatok[sku] = {"mennyiseg": uj_mennyiseg, "min_ertek": 0}
+        st.toast(f"Kiszedve! Új készlet: {uj_mennyiseg}", icon="❌")
         
     if col2.button("✅ Visszarakás"):
-        db.collection("keszlet").document(sku).set({"mennyiseg": akt_mennyiseg + 1}, merge=True)
+        uj_mennyiseg = akt_mennyiseg + 1
+        db.collection("keszlet").document(sku).set({"mennyiseg": uj_mennyiseg}, merge=True)
         db.collection("naplo").add({
             "datum": datetime.now().strftime("%Y-%m-%d"), 
             "sku": sku, 
             "tipus": "visszarakas", 
             "darabszam": 1
         })
-        st.cache_data.clear()
-        st.rerun()
+        # Helyi memória frissítése gyorsítótár ürítés / rerun helyett
+        if sku in adatok and isinstance(adatok[sku], dict):
+            adatok[sku]["mennyiseg"] = uj_mennyiseg
+        else:
+            adatok[sku] = {"mennyiseg": uj_mennyiseg, "min_ertek": 0}
+        st.toast(f"Visszarakva! Új készlet: {uj_mennyiseg}", icon="✅")
 
     st.divider()
     st.subheader("📥 Heti riport export")
@@ -277,7 +288,6 @@ elif funkcio == "🔐 Admin":
                 df = get_matrix(adatok, w)
                 
                 st.write("✏️ **Készlet szerkesztése:**")
-                # Fontos: st.data_editor nyers df-et kap, különben elromlik a szerkesztés
                 edited_df = st.data_editor(
                     df,
                     hide_index=True,
@@ -311,9 +321,13 @@ elif funkcio == "🔐 Admin":
                                 
                             sku = f"{col_str}_{w}_{kem}"
                             db.collection("keszlet").document(sku).set({"mennyiseg": new_val}, merge=True)
+                            
+                            # Memória frissítése
+                            if sku in adatok and isinstance(adatok[sku], dict):
+                                adatok[sku]["mennyiseg"] = new_val
+                            else:
+                                adatok[sku] = {"mennyiseg": new_val, "min_ertek": 0}
                     
-                    st.cache_data.clear()
-                    st.success(f"{w} szélesség készlete sikeresen elmentve!")
-                    st.rerun()
+                    st.toast(f"{w} szélesség készlete elmentve!", icon="✅")
     else: 
         st.warning("Add meg a jelszót!")
