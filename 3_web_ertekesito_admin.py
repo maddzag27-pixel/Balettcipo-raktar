@@ -126,39 +126,47 @@ def generate_weekly_report(year, week):
     start_date = jan4 + timedelta(days=(week - 1) * 7 - jan4.weekday())
     end_date = start_date + timedelta(days=6)
     
-    naplo_docs = db.collection("naplo") \
-        .where("datum", ">=", start_date.strftime("%Y-%m-%d")) \
-        .where("datum", "<=", end_date.strftime("%Y-%m-%d")) \
-        .stream()
-    
-    osszesites = defaultdict(int)
-    for d in naplo_docs:
-        doc = d.to_dict()
-        key = (doc.get("datum"), doc.get("sku"), doc.get("tipus"))
-        osszesites[key] += doc.get("darabszam", 0)
+    try:
+        naplo_docs = db.collection("naplo") \
+            .where("datum", ">=", start_date.strftime("%Y-%m-%d")) \
+            .where("datum", "<=", end_date.strftime("%Y-%m-%d")) \
+            .stream()
+        
+        osszesites = defaultdict(int)
+        for d in naplo_docs:
+            doc = d.to_dict()
+            key = (doc.get("datum"), doc.get("sku"), doc.get("tipus"))
+            osszesites[key] += doc.get("darabszam", 0)
+    except Exception as e:
+        st.error(f"Sikerületlen riport lekérés (lehet, hogy elfogyott a napi Firestore kvóta): {e}")
+        return None
 
-    wb = openpyxl.load_workbook("template.xlsx")
-    ws = wb.active
-    ws['O1'] = week
-    
-    for (datum, sku, tipus), mennyiseg in osszesites.items():
-        datum_obj = datetime.strptime(datum, "%Y-%m-%d")
-        nap_index = datum_obj.weekday() 
-        col_offset = nap_index * 3 + 1
+    try:
+        wb = openpyxl.load_workbook("template.xlsx")
+        ws = wb.active
+        ws['O1'] = week
         
-        start_row = 4 if tipus == "kiszedes" else 36 
+        for (datum, sku, tipus), mennyiseg in osszesites.items():
+            datum_obj = datetime.strptime(datum, "%Y-%m-%d")
+            nap_index = datum_obj.weekday() 
+            col_offset = nap_index * 3 + 1
+            
+            start_row = 4 if tipus == "kiszedes" else 36 
+            
+            for r in range(start_row, start_row + 30):
+                if ws.cell(row=r, column=col_offset).value is None:
+                    sku_parts = sku.split("_")
+                    ws.cell(row=r, column=col_offset, value=f"{sku_parts[0]}{sku_parts[1]}")
+                    ws.cell(row=r, column=col_offset+1, value=sku_parts[2])
+                    ws.cell(row=r, column=col_offset+2, value=mennyiseg)
+                    break
         
-        for r in range(start_row, start_row + 30):
-            if ws.cell(row=r, column=col_offset).value is None:
-                sku_parts = sku.split("_")
-                ws.cell(row=r, column=col_offset, value=f"{sku_parts[0]}{sku_parts[1]}")
-                ws.cell(row=r, column=col_offset+1, value=sku_parts[2])
-                ws.cell(row=r, column=col_offset+2, value=mennyiseg)
-                break
-    
-    buffer = BytesIO()
-    wb.save(buffer)
-    return buffer.getvalue()
+        buffer = BytesIO()
+        wb.save(buffer)
+        return buffer.getvalue()
+    except Exception as e:
+        st.error(f"Hiba a sablon fájl feldolgozásakor: {e}")
+        return None
 
 # --- APP LOGIKA ---
 funkcio = st.sidebar.radio("Válassz felületet:", ["📱 Raktári Kiszedés", "📊 Értékesítő", "🔐 Admin"], key="nav")
@@ -220,7 +228,9 @@ if funkcio == "📱 Raktári Kiszedés":
     ev_in = ev.number_input("Év", value=datetime.now().year)
     het_in = het.number_input("Hét", value=datetime.now().isocalendar()[1])
     if st.button("Riport készítése"):
-        st.download_button("📥 Letöltés (Excel)", generate_weekly_report(ev_in, het_in), f"heti_riport_{ev_in}_W{het_in}.xlsx")
+        report_bytes = generate_weekly_report(ev_in, het_in)
+        if report_bytes:
+            st.download_button("📥 Letöltés (Excel)", report_bytes, f"heti_riport_{ev_in}_W{het_in}.xlsx")
 
 elif funkcio == "📊 Értékesítő":
     st.title("📊 Értékesítői Nézet")
@@ -303,6 +313,9 @@ elif funkcio == "🔐 Admin":
                 )
                 
                 if st.button(f"Mentés: {w} szélesség", key=f"btn_save_{w}"):
+                    batch = db.batch()
+                    updated_count = 0
+
                     for _, row in edited_df.iterrows():
                         kem = str(row.iloc[0])
                         if kem == "ÖSSZESEN":
@@ -320,14 +333,26 @@ elif funkcio == "🔐 Admin":
                                 new_val = 0
                                 
                             sku = f"{col_str}_{w}_{kem}"
-                            db.collection("keszlet").document(sku).set({"mennyiseg": new_val}, merge=True)
                             
-                            # Memória frissítése
-                            if sku in adatok and isinstance(adatok[sku], dict):
-                                adatok[sku]["mennyiseg"] = new_val
-                            else:
-                                adatok[sku] = {"mennyiseg": new_val, "min_ertek": 0}
+                            # CSAK AKKOR ÍRUNK ADATBÁZISBA, HA TÉNYLEG MEGVÁLTOZOTT AZ ÉRTÉK!
+                            old_info = adatok.get(sku, {"mennyiseg": 0})
+                            old_val = old_info.get("mennyiseg", 0) if isinstance(old_info, dict) else old_info
+                            
+                            if new_val != old_val:
+                                doc_ref = db.collection("keszlet").document(sku)
+                                batch.set(doc_ref, {"mennyiseg": new_val}, merge=True)
+                                updated_count += 1
+                                
+                                # Memória frissítése
+                                if sku in adatok and isinstance(adatok[sku], dict):
+                                    adatok[sku]["mennyiseg"] = new_val
+                                else:
+                                    adatok[sku] = {"mennyiseg": new_val, "min_ertek": 0}
                     
-                    st.toast(f"{w} szélesség készlete elmentve!", icon="✅")
+                    if updated_count > 0:
+                        batch.commit()
+                        st.toast(f"{w} szélesség elmentve! ({updated_count} elem módosult)", icon="✅")
+                    else:
+                        st.info("Nem történt változás, nem volt szükség adatbázis-írásra.")
     else: 
         st.warning("Add meg a jelszót!")
