@@ -25,7 +25,6 @@ def get_db():
 db = get_db()
 
 # --- SEGÉDFÜGGVÉNYEK ---
-# TTL 300 másodpercre (5 perc) állítva a hálózati terhelés csökkentésére
 @st.cache_data(ttl=300)
 def get_firebase_data():
     try:
@@ -199,7 +198,6 @@ if funkcio == "📱 Raktári Kiszedés":
             "tipus": "kiszedes", 
             "darabszam": 1
         })
-        # Helyi memória frissítése gyorsítótár ürítés / rerun helyett
         if sku in adatok and isinstance(adatok[sku], dict):
             adatok[sku]["mennyiseg"] = uj_mennyiseg
         else:
@@ -215,7 +213,6 @@ if funkcio == "📱 Raktári Kiszedés":
             "tipus": "visszarakas", 
             "darabszam": 1
         })
-        # Helyi memória frissítése gyorsítótár ürítés / rerun helyett
         if sku in adatok and isinstance(adatok[sku], dict):
             adatok[sku]["mennyiseg"] = uj_mennyiseg
         else:
@@ -298,11 +295,12 @@ elif funkcio == "🔐 Admin":
                 df = get_matrix(adatok, w)
                 
                 st.write("✏️ **Készlet szerkesztése:**")
+                editor_key = f"editor_admin_{w}"
                 edited_df = st.data_editor(
                     df,
                     hide_index=True,
                     use_container_width=True,
-                    key=f"editor_admin_{w}"
+                    key=editor_key
                 )
                 
                 st.write("🔍 **Készletszintek és figyelmeztetések (Nézet):**")
@@ -313,46 +311,39 @@ elif funkcio == "🔐 Admin":
                 )
                 
                 if st.button(f"Mentés: {w} szélesség", key=f"btn_save_{w}"):
-                    batch = db.batch()
-                    updated_count = 0
-
-                    for _, row in edited_df.iterrows():
-                        kem = str(row.iloc[0])
-                        if kem == "ÖSSZESEN":
-                            continue
+                    # Csak a ténylegesen átírt cellák lekérése a Streamlit session state-ből
+                    changes = st.session_state[editor_key].get("edited_rows", {})
+                    
+                    if not changes:
+                        st.info("Nem történt változás, nem volt szükség mentésre.")
+                    else:
+                        batch = db.batch()
+                        updated_count = 0
                         
-                        for col in edited_df.columns[1:]:
-                            col_str = str(col)
-                            if col_str == "ÖSSZESEN":
+                        for row_idx, col_dict in changes.items():
+                            kem = str(df.iloc[row_idx, 0])
+                            if kem == "ÖSSZESEN":
                                 continue
                                 
-                            val = row[col]
-                            try:
-                                new_val = int(val)
-                            except (ValueError, TypeError):
-                                new_val = 0
-                                
-                            sku = f"{col_str}_{w}_{kem}"
-                            
-                            # CSAK AKKOR ÍRUNK ADATBÁZISBA, HA TÉNYLEG MEGVÁLTOZOTT AZ ÉRTÉK!
-                            old_info = adatok.get(sku, {"mennyiseg": 0})
-                            old_val = old_info.get("mennyiseg", 0) if isinstance(old_info, dict) else old_info
-                            
-                            if new_val != old_val:
+                            for col_idx, new_val in col_dict.items():
+                                col_name = str(df.columns[col_idx])
+                                if col_name == "ÖSSZESEN":
+                                    continue
+                                    
+                                try:
+                                    val_to_save = int(new_val)
+                                except (ValueError, TypeError):
+                                    val_to_save = 0
+                                    
+                                sku = f"{col_name}_{w}_{kem}"
                                 doc_ref = db.collection("keszlet").document(sku)
-                                batch.set(doc_ref, {"mennyiseg": new_val}, merge=True)
+                                batch.set(doc_ref, {"mennyiseg": val_to_save}, merge=True)
                                 updated_count += 1
-                                
-                                # Memória frissítése
-                                if sku in adatok and isinstance(adatok[sku], dict):
-                                    adatok[sku]["mennyiseg"] = new_val
-                                else:
-                                    adatok[sku] = {"mennyiseg": new_val, "min_ertek": 0}
-                    
-                    if updated_count > 0:
-                        batch.commit()
-                        st.toast(f"{w} szélesség elmentve! ({updated_count} elem módosult)", icon="✅")
-                    else:
-                        st.info("Nem történt változás, nem volt szükség adatbázis-írásra.")
+
+                        if updated_count > 0:
+                            batch.commit()
+                            st.cache_data.clear()
+                            st.toast(f"{w} szélesség elmentve! ({updated_count} elem módosult)", icon="✅")
+                            st.rerun()
     else: 
         st.warning("Add meg a jelszót!")
