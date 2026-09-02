@@ -198,11 +198,9 @@ if funkcio == "📱 Raktári Kiszedés":
             "tipus": "kiszedes", 
             "darabszam": 1
         })
-        if sku in adatok and isinstance(adatok[sku], dict):
-            adatok[sku]["mennyiseg"] = uj_mennyiseg
-        else:
-            adatok[sku] = {"mennyiseg": uj_mennyiseg, "min_ertek": 0}
+        st.cache_data.clear()
         st.toast(f"Kiszedve! Új készlet: {uj_mennyiseg}", icon="❌")
+        st.rerun()
         
     if col2.button("✅ Visszarakás"):
         uj_mennyiseg = akt_mennyiseg + 1
@@ -213,11 +211,9 @@ if funkcio == "📱 Raktári Kiszedés":
             "tipus": "visszarakas", 
             "darabszam": 1
         })
-        if sku in adatok and isinstance(adatok[sku], dict):
-            adatok[sku]["mennyiseg"] = uj_mennyiseg
-        else:
-            adatok[sku] = {"mennyiseg": uj_mennyiseg, "min_ertek": 0}
+        st.cache_data.clear()
         st.toast(f"Visszarakva! Új készlet: {uj_mennyiseg}", icon="✅")
+        st.rerun()
 
     st.divider()
     st.subheader("📥 Heti riport export")
@@ -311,7 +307,6 @@ elif funkcio == "🔐 Admin":
                 )
                 
                 if st.button(f"Mentés: {w} szélesség", key=f"btn_save_{w}"):
-                    # Csak a ténylegesen átírt cellák lekérése a Streamlit session state-ből
                     changes = st.session_state[editor_key].get("edited_rows", {})
                     
                     if not changes:
