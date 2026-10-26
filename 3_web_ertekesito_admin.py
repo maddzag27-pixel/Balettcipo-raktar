@@ -291,12 +291,11 @@ elif funkcio == "🔐 Admin":
                 df = get_matrix(adatok, w)
                 
                 st.write("✏️ **Készlet szerkesztése:**")
-                editor_key = f"editor_admin_{w}"
                 edited_df = st.data_editor(
                     df,
                     hide_index=True,
                     use_container_width=True,
-                    key=editor_key
+                    key=f"editor_admin_{w}"
                 )
                 
                 st.write("🔍 **Készletszintek és figyelmeztetések (Nézet):**")
@@ -307,43 +306,43 @@ elif funkcio == "🔐 Admin":
                 )
                 
                 if st.button(f"Mentés: {w} szélesség", key=f"btn_save_{w}"):
-                    changes = st.session_state[editor_key].get("edited_rows", {})
+                    batch = db.batch()
+                    updated_count = 0
                     
-                    if not changes:
-                        st.info("Nem történt változás, nem volt szükség mentésre.")
-                    else:
-                        batch = db.batch()
-                        updated_count = 0
-                        
-                        for row_idx, col_dict in changes.items():
-                            kem = str(df.iloc[row_idx, 0])
-                            if kem == "ÖSSZESEN":
+                    for row_idx, row in edited_df.iterrows():
+                        kem = str(row["Keménység"])
+                        if kem == "ÖSSZESEN":
+                            continue
+                            
+                        for col in edited_df.columns:
+                            if col == "Keménység" or col == "ÖSSZESEN":
                                 continue
                                 
-                            for col_idx, new_val in col_dict.items():
-                                # Biztonságos oszlopnév lekérés a DataFrame-ből
-                                try:
-                                    col_name = str(df.columns[col_idx])
-                                except IndexError:
-                                    continue
-                                    
-                                if col_name == "ÖSSZESEN" or col_name == "Keménység":
-                                    continue
-                                    
-                                try:
-                                    val_to_save = int(new_val)
-                                except (ValueError, TypeError):
-                                    val_to_save = 0
-                                    
-                                sku = f"{col_name}_{w}_{kem}"
+                            new_val = row[col]
+                            old_val = df.loc[df["Keménység"] == kem, col].values[0]
+                            
+                            try:
+                                val_to_save = int(new_val)
+                            except (ValueError, TypeError):
+                                val_to_save = 0
+                                
+                            try:
+                                old_val_int = int(old_val)
+                            except (ValueError, TypeError):
+                                old_val_int = 0
+                                
+                            if val_to_save != old_val_int:
+                                sku = f"{col}_{w}_{kem}"
                                 doc_ref = db.collection("keszlet").document(sku)
                                 batch.set(doc_ref, {"mennyiseg": val_to_save}, merge=True)
                                 updated_count += 1
 
-                        if updated_count > 0:
-                            batch.commit()
-                            st.cache_data.clear()
-                            st.toast(f"{w} szélesség elmentve! ({updated_count} elem módosult)", icon="✅")
-                            st.rerun()
+                    if updated_count > 0:
+                        batch.commit()
+                        st.cache_data.clear()
+                        st.toast(f"{w} szélesség elmentve! ({updated_count} elem módosult)", icon="✅")
+                        st.rerun()
+                    else:
+                        st.info("Nem történt változás a táblázatban.")
     else: 
         st.warning("Add meg a jelszót!")
