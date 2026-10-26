@@ -321,8 +321,13 @@ elif funkcio == "🔐 Admin":
                                 continue
                                 
                             for col_idx, new_val in col_dict.items():
-                                col_name = str(df.columns[col_idx])
-                                if col_name == "ÖSSZESEN":
+                                # Biztonságos oszlopnév lekérés a DataFrame-ből
+                                try:
+                                    col_name = str(df.columns[col_idx])
+                                except IndexError:
+                                    continue
+                                    
+                                if col_name == "ÖSSZESEN" or col_name == "Keménység":
                                     continue
                                     
                                 try:
